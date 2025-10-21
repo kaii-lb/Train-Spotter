@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -22,10 +23,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.kaii.trafikverkettracker.compose.screens.LoginScreen
+import com.kaii.trafikverkettracker.compose.screens.TimeTableScreen
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.models.main.MainViewModel
 import com.kaii.trafikverkettracker.models.main.MainViewModelFactory
-import com.kaii.trafikverkettracker.compose.screens.LoginScreen
 import com.kaii.trafikverkettracker.ui.theme.TrafikVerketTrackerTheme
 
 val LocalNavController = compositionLocalOf<NavHostController> {
@@ -46,13 +49,20 @@ class MainActivity : ComponentActivity() {
                     factory = MainViewModelFactory(applicationContext)
                 )
 
-                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = null)
-
-                CompositionLocalProvider(
-                    LocalNavController provides navController,
-                    LocalMainViewModel provides mainViewModel
-                ) {
-                    Content(apiKey = apiKey)
+                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = "-1")
+                if (apiKey != "-1") { // TODO: please use something else-
+                    CompositionLocalProvider(
+                        LocalNavController provides navController,
+                        LocalMainViewModel provides mainViewModel
+                    ) {
+                        Content(apiKey = apiKey)
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    )
                 }
             }
         }
@@ -88,7 +98,9 @@ class MainActivity : ComponentActivity() {
             }
 
             composable<Screens.MainScreen> {
+                val screen = it.toRoute<Screens.MainScreen>()
 
+                TimeTableScreen(apiKey = screen.apiKey)
             }
         }
     }

@@ -5,4 +5,10 @@
     <string name="login_continue">Continue</string>
     <string name="login_api_key">API Key</string>
     <string name="login_api_key_missing">Don\'t have one?</string>
+
+    <!--  Time Tables  -->
+    <string name="timetable_arrivals">Arrivals</string>
+    <string name="timetable_departures">Departures</string>
+    <string name="alert">Alert</string>
+    <string name="okay">Okay</string>
 </resources>

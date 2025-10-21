@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -56,6 +57,7 @@ dependencies {
     implementation(libs.org.jetbrains.kotlinx.serialization)
 
     implementation(libs.com.squareup.okhttp3)
+    implementation(libs.com.squareup.okhttp3.coroutines)
     implementation(libs.io.github.pushpalroy.jetlime)
 
     testImplementation(libs.junit)

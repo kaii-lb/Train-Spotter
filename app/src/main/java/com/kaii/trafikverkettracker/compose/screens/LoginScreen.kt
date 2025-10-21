@@ -102,7 +102,7 @@ fun LoginScreen(
             Text(
                 text = stringResource(id = R.string.login_api_key_missing),
                 style = TextStyle(
-                    fontSize = TextStylingConstants.SIZE_SMALL,
+                    fontSize = TextStylingConstants.SIZE_EXTRA_SMALL,
                     textAlign = TextAlign.Start,
                     textDecoration = TextDecoration.Underline,
                     color = MaterialTheme.colorScheme.primary
