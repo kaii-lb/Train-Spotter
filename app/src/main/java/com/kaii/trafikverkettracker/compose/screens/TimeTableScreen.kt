@@ -18,12 +18,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.kaii.trafikverkettracker.R
 import com.kaii.trafikverkettracker.api.ArrivalsResponse
 import com.kaii.trafikverkettracker.api.DeparturesResponse
 import com.kaii.trafikverkettracker.api.RealtimeClient
+import com.kaii.trafikverkettracker.api.StopGroup
 import com.kaii.trafikverkettracker.compose.widgets.TimeTableElement
 import com.kaii.trafikverkettracker.compose.widgets.TimeTableType
 import com.kaii.trafikverkettracker.compose.widgets.TimeTableTypeDisplay
@@ -43,15 +42,15 @@ import kotlin.time.ExperimentalTime
 @Composable
 fun TimeTableScreen(
     apiKey: String,
+    stopGroup: StopGroup,
     modifier: Modifier = Modifier
 ) {
     var type by remember { mutableStateOf(TimeTableType.Arrivals) }
-    var stopName by remember { mutableStateOf("") } // TODO: replace with proper implementation
 
     Scaffold(
         topBar = {
             TopBar(
-                stopName = stopName,
+                stopName = stopGroup.name,
                 type = type,
                 setType = {
                     type = it
@@ -62,7 +61,6 @@ fun TimeTableScreen(
     ) { innerPadding ->
         var departures: DeparturesResponse? by remember { mutableStateOf(null) }
         var arrivals: ArrivalsResponse? by remember { mutableStateOf(null) }
-        val stopId = 740000138
 
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
@@ -77,11 +75,9 @@ fun TimeTableScreen(
             withContext(Dispatchers.IO) {
                 while (true) {
                     if (type == TimeTableType.Arrivals) {
-                        arrivals = realtimeClient.fetchArrivals(stopId)
-                        stopName = arrivals?.stops?.first()?.name ?: ""
+                        arrivals = realtimeClient.fetchArrivals(stopGroup.id)
                     } else {
-                        departures = realtimeClient.fetchDepartures(stopId)
-                        stopName = departures?.stops?.first()?.name ?: ""
+                        departures = realtimeClient.fetchDepartures(stopGroup.id)
                     }
 
                     delay(ServerConstants.UPDATE_TIME)
@@ -97,9 +93,9 @@ fun TimeTableScreen(
                     isRefreshing = true
 
                     if (type == TimeTableType.Arrivals) {
-                        arrivals = realtimeClient.fetchArrivals(stopId)
+                        arrivals = realtimeClient.fetchArrivals(stopGroup.id)
                     } else {
-                        departures = realtimeClient.fetchDepartures(stopId)
+                        departures = realtimeClient.fetchDepartures(stopGroup.id)
                     }
 
                     delay(ServerConstants.REFRESH_TIME)

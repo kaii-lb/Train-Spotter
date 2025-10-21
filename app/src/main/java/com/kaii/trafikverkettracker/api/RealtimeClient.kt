@@ -7,7 +7,6 @@ import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.coroutines.executeAsync
-import kotlin.coroutines.suspendCoroutine
 
 private const val TAG = "com.okay.trafikverkettracker.api.RealtimeClient"
 
@@ -23,7 +22,7 @@ class RealtimeClient(
     private val stops = context.resources.getString(R.string.stops)
 
     suspend fun fetchDepartures(
-        stopId: Int
+        stopId: String
     ): DeparturesResponse? {
         val request = Request.Builder()
             .url("$endpoint/${departures}/${stopId}?key=${apiKey}")
@@ -41,7 +40,7 @@ class RealtimeClient(
     }
 
     suspend fun fetchArrivals(
-        stopId: Int
+        stopId: String
     ): ArrivalsResponse? {
         val request = Request.Builder()
             .url("$endpoint/${arrivals}/${stopId}?key=${apiKey}")
@@ -58,11 +57,11 @@ class RealtimeClient(
         else null
     }
 
-    suspend fun fetchStopInfo(
-        stopId: Int
-    ) : Stop? {
+    suspend fun findStopGroups(
+        name: String
+    ): StopsResponse? {
         val request = Request.Builder()
-            .url("$endpoint/${stops}/name/${stopId}?key=${apiKey}")
+            .url("$endpoint/${stops}/name/${name}?key=${apiKey}")
             .build()
 
         val call = client.newCall(request)
@@ -70,7 +69,7 @@ class RealtimeClient(
 
         val body = response.body.string()
 
-        Log.d(TAG, "Body for \"$endpoint/${stops}/name/${stopId}?key=${apiKey}\" is \n $body")
+        Log.d(TAG, "Body for \"$endpoint/${stops}/name/${name}?key=${apiKey}\" is \n $body")
 
         return if (response.isSuccessful && body != "") json.decodeFromString(body)
         else null

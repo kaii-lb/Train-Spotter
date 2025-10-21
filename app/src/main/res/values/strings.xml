@@ -11,4 +11,8 @@
     <string name="timetable_departures">Departures</string>
     <string name="alert">Alert</string>
     <string name="okay">Okay</string>
+
+    <!--  Stop Search  -->
+    <string name="search">Search</string>
+    <string name="transport_modes">Transport By: %s</string>
 </resources>

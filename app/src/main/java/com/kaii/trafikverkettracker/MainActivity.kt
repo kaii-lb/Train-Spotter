@@ -24,12 +24,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.kaii.trafikverkettracker.api.Alert
+import com.kaii.trafikverkettracker.api.Stop
+import com.kaii.trafikverkettracker.api.StopGroup
 import com.kaii.trafikverkettracker.compose.screens.LoginScreen
+import com.kaii.trafikverkettracker.compose.screens.StopSearchScreen
 import com.kaii.trafikverkettracker.compose.screens.TimeTableScreen
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.models.main.MainViewModel
 import com.kaii.trafikverkettracker.models.main.MainViewModelFactory
 import com.kaii.trafikverkettracker.ui.theme.TrafikVerketTrackerTheme
+import kotlin.reflect.typeOf
 
 val LocalNavController = compositionLocalOf<NavHostController> {
     throw IllegalStateException("CompositionLocal LocalNavController not present")
@@ -76,7 +81,7 @@ class MainActivity : ComponentActivity() {
             navController = navController,
             startDestination =
                 if (apiKey == null) Screens.LoginScreen
-                else Screens.MainScreen(apiKey = apiKey),
+                else Screens.SearchScreen,
             modifier = Modifier
                 .fillMaxSize(1f)
                 .background(MaterialTheme.colorScheme.background),
@@ -97,10 +102,25 @@ class MainActivity : ComponentActivity() {
                 LoginScreen()
             }
 
-            composable<Screens.MainScreen> {
-                val screen = it.toRoute<Screens.MainScreen>()
+            composable<Screens.TimeTableScreen>(
+                typeMap = mapOf(
+                    typeOf<StopGroup>() to StopGroup.StopGroupNavType,
+                    typeOf<Stop>() to Stop.StopNavType,
+                    typeOf<Alert>() to Alert.AlertNavType
+                )
+            ) {
+                val screen = it.toRoute<Screens.TimeTableScreen>()
 
-                TimeTableScreen(apiKey = screen.apiKey)
+                TimeTableScreen(
+                    apiKey = screen.apiKey,
+                    stopGroup = screen.stopGroup
+                )
+            }
+
+            composable<Screens.SearchScreen> {
+                StopSearchScreen(
+                    apiKey = apiKey!!
+                )
             }
         }
     }

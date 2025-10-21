@@ -1,5 +1,6 @@
 package com.kaii.trafikverkettracker.helpers
 
+import com.kaii.trafikverkettracker.api.StopGroup
 import kotlinx.serialization.Serializable
 
 interface Screens {
@@ -7,7 +8,11 @@ interface Screens {
     object LoginScreen : Screens
 
     @Serializable
-    data class MainScreen(
-        val apiKey: String
+    object SearchScreen : Screens
+
+    @Serializable
+    data class TimeTableScreen(
+        val apiKey: String,
+        val stopGroup: StopGroup
     ) : Screens
 }
