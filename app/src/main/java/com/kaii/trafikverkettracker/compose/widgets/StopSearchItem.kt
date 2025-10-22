@@ -71,7 +71,7 @@ fun StopSearchItem(
                 val strokeWidth = 0.5f.dp.toPx() * density
                 val y = size.height - strokeWidth / 2
 
-                if (position != StopSearchItemPositon.Bottom) {
+                if (position != StopSearchItemPositon.Bottom && position != StopSearchItemPositon.Single) {
                     drawLine(
                         color = separatorColor,
                         start = Offset(8.dp.toPx(), y),

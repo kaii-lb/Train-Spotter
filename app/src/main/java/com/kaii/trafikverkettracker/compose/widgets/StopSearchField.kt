@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.kaii.trafikverkettracker.R
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
+import kotlinx.coroutines.delay
 
 @Composable
 fun StopSearchField(
@@ -36,10 +38,15 @@ fun StopSearchField(
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    LaunchedEffect(text) {
+        delay(500)
+        onSearch()
+    }
+
     TextField(
         value = text,
         onValueChange = {
-            setText(it)
+            setText(it.trim())
         },
         maxLines = 1,
         singleLine = true,

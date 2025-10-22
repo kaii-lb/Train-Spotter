@@ -3,6 +3,7 @@ package com.kaii.trafikverkettracker.compose.screens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,7 +35,6 @@ import com.pushpal.jetlime.JetLimeDefaults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 
 
@@ -59,6 +59,7 @@ fun TimeTableScreen(
         },
         modifier = modifier
     ) { innerPadding ->
+        val listState = rememberLazyListState()
         var departures: DeparturesResponse? by remember { mutableStateOf(null) }
         var arrivals: ArrivalsResponse? by remember { mutableStateOf(null) }
 
@@ -71,17 +72,21 @@ fun TimeTableScreen(
             )
         }
 
+        var previousType by remember { mutableStateOf(type) }
         LaunchedEffect(type) {
-            withContext(Dispatchers.IO) {
-                while (true) {
-                    if (type == TimeTableType.Arrivals) {
-                        arrivals = realtimeClient.fetchArrivals(stopGroup.id)
-                    } else {
-                        departures = realtimeClient.fetchDepartures(stopGroup.id)
-                    }
-
-                    delay(ServerConstants.UPDATE_TIME)
+            while (true) {
+                if (type == TimeTableType.Arrivals) {
+                    arrivals = realtimeClient.fetchArrivals(stopGroup.id)
+                } else {
+                    departures = realtimeClient.fetchDepartures(stopGroup.id)
                 }
+
+                if (previousType != type && listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                    listState.scrollToItem(0)
+                    previousType = type
+                }
+
+                delay(ServerConstants.UPDATE_TIME)
             }
         }
 
@@ -107,6 +112,7 @@ fun TimeTableScreen(
                 .padding(innerPadding)
         ) {
             JetLimeColumn(
+                listState = listState,
                 itemsList = ItemsList(
                     if (type == TimeTableType.Arrivals) arrivals?.arrivals ?: emptyList()
                     else departures?.departures ?: emptyList()

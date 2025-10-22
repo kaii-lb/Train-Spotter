@@ -58,7 +58,7 @@ fun StopSearchScreen(
                 .fillMaxWidth()
         ) {
             var searchedText by remember { mutableStateOf("") }
-            val stops = remember { mutableStateListOf<StopGroup>() }
+            val stopGroups = remember { mutableStateListOf<StopGroup>() }
 
             val coroutineScope = rememberCoroutineScope()
             val context = LocalContext.current
@@ -79,8 +79,8 @@ fun StopSearchScreen(
                 onSearch = {
                     coroutineScope.launch(Dispatchers.IO) {
                         val new = realtimeClient.findStopGroups(name = searchedText)?.stopGroups ?: emptyList()
-                        stops.clear()
-                        stops.addAll(new)
+                        stopGroups.clear()
+                        stopGroups.addAll(new)
                     }
                 }
             )
@@ -90,17 +90,22 @@ fun StopSearchScreen(
             val navController = LocalNavController.current
             LazyColumn {
                 items(
-                    count = stops.size
+                    count = stopGroups.size,
+                    key = { index ->
+                        stopGroups[index].id
+                    }
                 ) { index ->
-                    val stopGroup = stops[index]
+                    val stopGroup = stopGroups[index]
 
                     StopSearchItem(
                         stop = stopGroup,
                         position =
-                            if (stops.size == 1) StopSearchItemPositon.Single
+                            if (stopGroups.size == 1) StopSearchItemPositon.Single
                             else if (index == 0) StopSearchItemPositon.Top
-                            else if (index == stops.size - 1) StopSearchItemPositon.Bottom
-                            else StopSearchItemPositon.Middle
+                            else if (index == stopGroups.size - 1) StopSearchItemPositon.Bottom
+                            else StopSearchItemPositon.Middle,
+                        modifier = Modifier
+                            .animateItem()
                     ) {
                         navController.navigate(
                             route = Screens.TimeTableScreen(
@@ -112,7 +117,7 @@ fun StopSearchScreen(
                 }
             }
 
-            if (stops.isEmpty()) {
+            if (stopGroups.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

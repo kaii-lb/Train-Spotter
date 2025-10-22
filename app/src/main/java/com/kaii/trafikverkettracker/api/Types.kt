@@ -92,7 +92,7 @@ data class Query(
 @Serializable
 data class Route(
     val name: String?,
-    val designation: String,
+    val designation: String?,
 
     @SerialName("transport_mode_code")
     val transportModeCode: Int,
@@ -143,12 +143,12 @@ data class TimetableEntry(
     val stop: Stop,
 
     @SerialName("scheduled_platform")
-    val scheduledPlatform: Platform,
+    val scheduledPlatform: Platform? = null,
 
     @SerialName("realtime_platform")
-    val realtimePlatform: Platform,
+    val realtimePlatform: Platform? = null,
 
-    val alerts: List<Alert>,
+    val alerts: List<Alert> = emptyList(),
 
     @SerialName("is_realtime")
     val isRealtime: Boolean

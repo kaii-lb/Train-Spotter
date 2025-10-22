@@ -17,6 +17,7 @@ local.properties
 *.ap_
 *.aab
 *.dev
+*.idsig
 bin/
 gen/
 local.properties
@@ -32,9 +33,10 @@ output.json
 obj/
 .externalNativeBuild
 keys/
-photos_signed_debug.apk.idsig
-photos_signed_release.apk.idsig
-photos_signed_universal.apk.idsig
+/trafikverket_tracker_signed_debug.apk.idsig
+/trafikverket_tracker_signed_debug.apk
+/trafikverket_tracker_signed_release.apk
+/trafikverket_tracker_signed_release.apk.idsig
 /gradle/wrapper/gradle-wrapper.jar
 /gradlew
 /gradlew.bat
