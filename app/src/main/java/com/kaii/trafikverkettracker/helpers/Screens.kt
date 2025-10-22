@@ -5,13 +5,16 @@ import kotlinx.serialization.Serializable
 
 interface Screens {
     @Serializable
-    object LoginScreen : Screens
+    object Login : Screens
 
     @Serializable
-    object SearchScreen : Screens
+    object Search : Screens
 
     @Serializable
-    data class TimeTableScreen(
+    object Settings : Screens
+
+    @Serializable
+    data class TimeTable(
         val apiKey: String,
         val stopGroup: StopGroup
     ) : Screens

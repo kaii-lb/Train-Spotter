@@ -32,12 +32,15 @@ class UserSettingsImpl(
 
     fun getApiKey() =
         context.datastore.data.map {
-            it[apiKey]
+            if (it[apiKey] == null || it[apiKey]?.isBlank() != false) ApiKey.NotAvailable
+            else ApiKey.Available(apiKey = it[apiKey] ?: "")
         }
 
-    fun setApiKey(key: String) = scope.launch {
+    fun setApiKey(key: ApiKey) = scope.launch {
         context.datastore.edit {
-            it[apiKey] = key
+            it[apiKey] =
+                if (key is ApiKey.NotAvailable) ""
+                else (key as ApiKey.Available).apiKey
         }
     }
 }

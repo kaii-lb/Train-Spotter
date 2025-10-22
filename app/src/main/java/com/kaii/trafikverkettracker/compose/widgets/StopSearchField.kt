@@ -39,6 +39,8 @@ fun StopSearchField(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(text) {
+        if (text.isBlank()) return@LaunchedEffect
+
         delay(500)
         onSearch()
     }
@@ -46,7 +48,7 @@ fun StopSearchField(
     TextField(
         value = text,
         onValueChange = {
-            setText(it.trim())
+            setText(it)
         },
         maxLines = 1,
         singleLine = true,

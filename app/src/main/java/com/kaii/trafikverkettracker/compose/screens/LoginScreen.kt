@@ -17,15 +17,16 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -34,9 +35,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.kaii.trafikverkettracker.LocalMainViewModel
 import com.kaii.trafikverkettracker.R
+import com.kaii.trafikverkettracker.api.RealtimeClient
 import com.kaii.trafikverkettracker.compose.widgets.ApiKeyExplanationDialog
+import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.RoundedCornerConstants
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -59,11 +64,6 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             var apiKey by rememberSaveable { mutableStateOf("") }
-            val isError by remember {
-                derivedStateOf {
-                    apiKey.isBlank()
-                }
-            }
 
             TextField(
                 value = apiKey,
@@ -84,7 +84,7 @@ fun LoginScreen(
                     )
                 },
                 singleLine = true,
-                isError = isError,
+                isError = apiKey.isBlank(),
                 shape = RoundedCornerShape(RoundedCornerConstants.ROUNDING_MEDIUM),
                 colors = TextFieldDefaults.colors(
                     errorIndicatorColor = Color.Transparent,
@@ -119,11 +119,26 @@ fun LoginScreen(
             )
 
             val mainViewModel = LocalMainViewModel.current
+            val context = LocalContext.current
+            val coroutineScope = rememberCoroutineScope()
+
             Button(
                 onClick = {
-                    mainViewModel.settings.user.setApiKey(apiKey)
+                    coroutineScope.launch(Dispatchers.IO) {
+                        val realtimeClient =
+                            RealtimeClient(
+                                context = context,
+                                apiKey = apiKey
+                            )
+
+                        val response = realtimeClient.findStopGroups("malmö")
+
+                        if (response != null) {
+                            mainViewModel.settings.user.setApiKey(ApiKey.Available(apiKey = apiKey))
+                        }
+                    }
                 },
-                enabled = !isError,
+                enabled = apiKey.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
             ) {

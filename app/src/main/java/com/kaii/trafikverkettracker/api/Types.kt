@@ -20,7 +20,13 @@ enum class TransportMode {
     Train,
 
     @SerialName("TAXI")
-    Taxi
+    Taxi,
+
+    @SerialName("METRO")
+    Metro,
+
+    @SerialName("TRAM")
+    TRAM,
 }
 
 @Serializable

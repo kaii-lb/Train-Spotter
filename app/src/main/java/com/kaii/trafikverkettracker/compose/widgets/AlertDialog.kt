@@ -33,7 +33,7 @@ fun TrafikAlertDialog(
         modifier = modifier
     ) {
         Text(
-            text = stringResource(id = R.string.alert),
+            text = stringResource(id = R.string.timetable_alert),
             fontSize = TextStylingConstants.SIZE_LARGE,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,

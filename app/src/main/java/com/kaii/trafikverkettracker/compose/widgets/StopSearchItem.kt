@@ -99,7 +99,7 @@ fun StopSearchItem(
 
             Text(
                 text = stringResource(
-                    id = R.string.transport_modes,
+                    id = R.string.search_transport_modes,
                     stop.transportModes.joinToString {
                         it.name
                     }

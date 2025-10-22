@@ -28,8 +28,10 @@ import com.kaii.trafikverkettracker.api.Alert
 import com.kaii.trafikverkettracker.api.Stop
 import com.kaii.trafikverkettracker.api.StopGroup
 import com.kaii.trafikverkettracker.compose.screens.LoginScreen
+import com.kaii.trafikverkettracker.compose.screens.Settings
 import com.kaii.trafikverkettracker.compose.screens.StopSearchScreen
 import com.kaii.trafikverkettracker.compose.screens.TimeTableScreen
+import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.models.main.MainViewModel
 import com.kaii.trafikverkettracker.models.main.MainViewModelFactory
@@ -54,13 +56,13 @@ class MainActivity : ComponentActivity() {
                     factory = MainViewModelFactory(applicationContext)
                 )
 
-                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = "-1")
-                if (apiKey != "-1") { // TODO: please use something else-
+                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = ApiKey.NotAvailable)
+                if (apiKey != ApiKey.NotAvailable) {
                     CompositionLocalProvider(
                         LocalNavController provides navController,
                         LocalMainViewModel provides mainViewModel
                     ) {
-                        Content(apiKey = apiKey)
+                        Content(apiKey = (apiKey as ApiKey.Available).apiKey)
                     }
                 } else {
                     Box(
@@ -80,8 +82,8 @@ class MainActivity : ComponentActivity() {
         NavHost(
             navController = navController,
             startDestination =
-                if (apiKey == null) Screens.LoginScreen
-                else Screens.SearchScreen,
+                if (apiKey == null) Screens.Login
+                else Screens.Search,
             modifier = Modifier
                 .fillMaxSize(1f)
                 .background(MaterialTheme.colorScheme.background),
@@ -98,18 +100,18 @@ class MainActivity : ComponentActivity() {
                 slideInHorizontally { width -> -width } + fadeIn()
             }
         ) {
-            composable<Screens.LoginScreen> {
+            composable<Screens.Login> {
                 LoginScreen()
             }
 
-            composable<Screens.TimeTableScreen>(
+            composable<Screens.TimeTable>(
                 typeMap = mapOf(
                     typeOf<StopGroup>() to StopGroup.StopGroupNavType,
                     typeOf<Stop>() to Stop.StopNavType,
                     typeOf<Alert>() to Alert.AlertNavType
                 )
             ) {
-                val screen = it.toRoute<Screens.TimeTableScreen>()
+                val screen = it.toRoute<Screens.TimeTable>()
 
                 TimeTableScreen(
                     apiKey = screen.apiKey,
@@ -117,10 +119,14 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            composable<Screens.SearchScreen> {
+            composable<Screens.Search> {
                 StopSearchScreen(
                     apiKey = apiKey!!
                 )
+            }
+
+            composable<Screens.Settings> {
+                Settings()
             }
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -78,9 +79,11 @@ fun StopSearchScreen(
                 icon = R.drawable.location_on,
                 onSearch = {
                     coroutineScope.launch(Dispatchers.IO) {
-                        val new = realtimeClient.findStopGroups(name = searchedText)?.stopGroups ?: emptyList()
-                        stopGroups.clear()
-                        stopGroups.addAll(new)
+                        if (searchedText.isBlank()) return@launch
+
+                        val new = realtimeClient.findStopGroups(name = searchedText.trim())?.stopGroups ?: emptyList()
+                        stopGroups.addAll(new - stopGroups)
+                        stopGroups.retainAll(new)
                     }
                 }
             )
@@ -108,7 +111,7 @@ fun StopSearchScreen(
                             .animateItem()
                     ) {
                         navController.navigate(
-                            route = Screens.TimeTableScreen(
+                            route = Screens.TimeTable(
                                 apiKey = apiKey,
                                 stopGroup = stopGroup
                             )
@@ -143,12 +146,28 @@ fun StopSearchScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(modifier: Modifier = Modifier) {
+    val navController = LocalNavController.current
+
     TopAppBar(
         title = {
             Text(
                 text = stringResource(id = R.string.search),
                 fontSize = TextStylingConstants.SIZE_LARGE
             )
+        },
+        actions = {
+            IconButton(
+                onClick = {
+                    navController.navigate(
+                        route = Screens.Settings
+                    )
+                }
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.settings),
+                    contentDescription = "Start settings"
+                )
+            }
         },
         modifier = modifier
     )
