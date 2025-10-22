@@ -16,7 +16,7 @@ class RealtimeClient(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient()
-    private val endpoint = context.resources.getString(R.string.endpoint)
+    private val endpoint = context.resources.getString(R.string.realtime_endpoint)
     private val departures = context.resources.getString(R.string.departures)
     private val arrivals = context.resources.getString(R.string.arrivals)
     private val stops = context.resources.getString(R.string.stops)

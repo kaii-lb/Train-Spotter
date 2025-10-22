@@ -16,7 +16,7 @@ fun formatSecondsToTime(
             ZoneId.systemDefault()
         )
         .format(
-            DateTimeFormatter.ofPattern("HH:mm a")
+            DateTimeFormatter.ofPattern("HH:mm")
         )
 
 fun formatDelay(
@@ -35,3 +35,4 @@ fun formatDelay(
 
     return prefix + formatted
 }
+

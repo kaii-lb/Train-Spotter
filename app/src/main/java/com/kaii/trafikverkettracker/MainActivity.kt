@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -31,6 +30,7 @@ import com.kaii.trafikverkettracker.compose.screens.LoginScreen
 import com.kaii.trafikverkettracker.compose.screens.Settings
 import com.kaii.trafikverkettracker.compose.screens.StopSearchScreen
 import com.kaii.trafikverkettracker.compose.screens.TimeTableScreen
+import com.kaii.trafikverkettracker.compose.screens.TrainDetailsScreen
 import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.models.main.MainViewModel
@@ -57,32 +57,24 @@ class MainActivity : ComponentActivity() {
                 )
 
                 val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = ApiKey.NotAvailable)
-                if (apiKey != ApiKey.NotAvailable) {
-                    CompositionLocalProvider(
-                        LocalNavController provides navController,
-                        LocalMainViewModel provides mainViewModel
-                    ) {
-                        Content(apiKey = (apiKey as ApiKey.Available).apiKey)
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background)
-                    )
+                CompositionLocalProvider(
+                    LocalNavController provides navController,
+                    LocalMainViewModel provides mainViewModel
+                ) {
+                    Content(apiKey = apiKey)
                 }
             }
         }
     }
 
     @Composable
-    fun Content(apiKey: String?) {
+    fun Content(apiKey: ApiKey) {
         val navController = LocalNavController.current
 
         NavHost(
             navController = navController,
             startDestination =
-                if (apiKey == null) Screens.Login
+                if (apiKey is ApiKey.NotAvailable) Screens.Login
                 else Screens.Search,
             modifier = Modifier
                 .fillMaxSize(1f)
@@ -121,12 +113,20 @@ class MainActivity : ComponentActivity() {
 
             composable<Screens.Search> {
                 StopSearchScreen(
-                    apiKey = apiKey!!
+                    apiKey = (apiKey as ApiKey.Available).apiKey
                 )
             }
 
             composable<Screens.Settings> {
                 Settings()
+            }
+
+            composable<Screens.TrainDetails> {
+                val screen = it.toRoute<Screens.TrainDetails>()
+                TrainDetailsScreen(
+                    apiKey = screen.apiKey,
+                    trainId = screen.trainId
+                )
             }
         }
     }
