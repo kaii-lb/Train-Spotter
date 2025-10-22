@@ -1,6 +1,5 @@
 package com.kaii.trafikverkettracker.compose.screens
 
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,16 +26,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import com.kaii.trafikverkettracker.LocalMainViewModel
 import com.kaii.trafikverkettracker.R
+import com.kaii.trafikverkettracker.compose.widgets.ApiKeyExplanationDialog
 import com.kaii.trafikverkettracker.helpers.RoundedCornerConstants
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
 
@@ -98,7 +96,13 @@ fun LoginScreen(
                     .fillMaxWidth(0.8f)
             )
 
-            val context = LocalContext.current
+            var showGetApiKeyDialog by remember { mutableStateOf(false) }
+            if (showGetApiKeyDialog) {
+                ApiKeyExplanationDialog {
+                    showGetApiKeyDialog = false
+                }
+            }
+
             Text(
                 text = stringResource(id = R.string.login_api_key_missing),
                 style = TextStyle(
@@ -110,12 +114,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
                     .clickable {
-                        val intent = Intent().apply {
-                            data = "https://developer.trafiklab.se".toUri()
-                            action = Intent.ACTION_VIEW
-                        }
-
-                        context.startActivity(intent)
+                        showGetApiKeyDialog = true
                     }
             )
 

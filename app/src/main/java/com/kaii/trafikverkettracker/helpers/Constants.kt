@@ -11,6 +11,8 @@ object TextStylingConstants {
 }
 
 object RoundedCornerConstants {
+    val ROUNDING_EXTRA_LARGE = 32.dp
+    val ROUNDING_LARGE = 24.dp
     val ROUNDING_MEDIUM = 16.dp
     val ROUNDING_SMALL = 8.dp
 }

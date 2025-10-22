@@ -5,6 +5,14 @@
     <string name="login_continue">Continue</string>
     <string name="login_api_key">API Key</string>
     <string name="login_api_key_missing">Don\'t have one?</string>
+    <string name="login_api_key_get">Get an API Key</string>
+    <string name="login_api_key_get_desc">
+    <![CDATA[
+        If you don\'t have an api key, head over to <a href="https://developer.trafiklab.se">https://developer.trafiklab.se</a>,
+        create an account, a project and in that project register a <font color="%s">Trafiklab Realtime APIs"</font> key.
+    ]]>
+    </string>
+    <string name="login_api_key_open_link">Open Link</string>
 
     <!--  Time Tables  -->
     <string name="timetable_arrivals">Arrivals</string>
@@ -15,4 +23,7 @@
     <!--  Stop Search  -->
     <string name="search">Search</string>
     <string name="transport_modes">Transport By: %s</string>
+
+    <!--  Misc  -->
+    <string name="close">Close</string>
 </resources>
