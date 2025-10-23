@@ -40,6 +40,7 @@ import com.kaii.trafikverkettracker.compose.widgets.SearchItem
 import com.kaii.trafikverkettracker.compose.widgets.SearchItemPositon
 import com.kaii.trafikverkettracker.compose.widgets.SearchMode
 import com.kaii.trafikverkettracker.compose.widgets.StopSearchItem
+import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +48,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
-    apiKey: String,
+    apiKey: ApiKey.Available,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -70,13 +71,13 @@ fun SearchScreen(
             val realtimeClient = remember {
                 RealtimeClient(
                     context = context,
-                    apiKey = apiKey
+                    apiKey = apiKey.realtimeKey
                 )
             }
             val trafikVerketClient = remember {
                 TrafikVerketClient(
                     context = context,
-                    apiKey = apiKey
+                    apiKey = apiKey.trafikVerketKey
                 )
             }
 
@@ -153,7 +154,6 @@ fun SearchScreen(
                         ) {
                             navController.navigate(
                                 route = Screens.TimeTable(
-                                    apiKey = apiKey,
                                     stopGroup = stopGroup
                                 )
                             )
@@ -178,7 +178,6 @@ fun SearchScreen(
                         ) {
                             navController.navigate(
                                 route = Screens.TrainDetails(
-                                    apiKey = apiKey,
                                     trainId = searchedText.trim()
                                 )
                             )

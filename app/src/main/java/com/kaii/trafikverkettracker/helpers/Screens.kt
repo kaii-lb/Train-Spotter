@@ -15,13 +15,11 @@ interface Screens {
 
     @Serializable
     data class TrainDetails(
-        val apiKey: String,
         val trainId: String
     ) : Screens
 
     @Serializable
     data class TimeTable(
-        val apiKey: String,
         val stopGroup: StopGroup
     ) : Screens
 }

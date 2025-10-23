@@ -4,13 +4,17 @@
     <!--  Login Page  -->
     <string name="login">Login</string>
     <string name="login_continue">Continue</string>
-    <string name="login_api_key">API Key</string>
-    <string name="login_api_key_missing">Don\'t have one?</string>
+    <string name="login_api_key_realtime">Realtime API Key</string>
+    <string name="login_api_key_trafikverket">TrafikVerket API Key</string>
+    <string name="login_api_key_missing">Don\'t have these?</string>
     <string name="login_api_key_get">Get an API Key</string>
     <string name="login_api_key_get_desc">
     <![CDATA[
         If you don\'t have an api key, head over to <a href="https://developer.trafiklab.se">https://developer.trafiklab.se</a>,
-        create an account, a project and in that project register a <font color="%s">Trafiklab Realtime APIs"</font> key.
+        create an account, a project and in that project register a <font color="%1$s">Trafiklab Realtime APIs"</font> key.
+
+        Then head over to <a href="https://data.trafikverket.se">https://data.trafikverket.se</a>
+        and register a <font color="%1$s">TrafikVerket OpenData API"</font> key.
     ]]>
     </string>
     <string name="login_api_key_open_link">Open Link</string>

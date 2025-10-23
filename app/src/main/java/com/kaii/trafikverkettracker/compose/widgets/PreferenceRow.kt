@@ -36,8 +36,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kaii.trafikverkettracker.LocalMainViewModel
 import com.kaii.trafikverkettracker.R
 import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.RoundedCornerConstants
@@ -59,12 +57,16 @@ fun PreferenceRow(
     title: String,
     @DrawableRes icon: Int,
     modifier: Modifier = Modifier,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 80.dp)
+            .clip(shape = RoundedCornerShape(RoundedCornerConstants.ROUNDING_LARGE))
+            .background(containerColor)
             .padding(all = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
@@ -72,6 +74,7 @@ fun PreferenceRow(
         Icon(
             painter = painterResource(id = icon),
             contentDescription = "Settings row icon",
+            tint = contentColor,
             modifier = Modifier
                 .size(size = 28.dp)
         )
@@ -83,6 +86,7 @@ fun PreferenceRow(
                 text = title,
                 fontSize = TextStylingConstants.SIZE_MEDIUM,
                 fontWeight = FontWeight.Bold,
+                color = contentColor
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -93,25 +97,32 @@ fun PreferenceRow(
 }
 
 @Composable
-fun ApiKeyPreferenceRow(modifier: Modifier = Modifier) {
-    val mainViewModel = LocalMainViewModel.current
-    val apiKey by mainViewModel.settings.user.getApiKey().collectAsStateWithLifecycle(initialValue = ApiKey.NotAvailable)
-
-    var placeholderKey by remember(apiKey) { mutableStateOf(apiKey) }
+fun ApiKeyPreferenceRow(
+    initialKey: ApiKey,
+    isRealtimeKey: Boolean,
+    setKey: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     PreferenceRow(
-        title = stringResource(id = R.string.login_api_key),
+        title = stringResource(
+            id =
+                if (isRealtimeKey) R.string.login_api_key_realtime
+                else R.string.login_api_key_trafikverket
+        ),
         icon = R.drawable.key,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         modifier = modifier
     ) {
+        var placeholderKey by remember(initialKey) { mutableStateOf(
+            if (isRealtimeKey) (initialKey as? ApiKey.Available)?.realtimeKey ?: ""
+            else (initialKey as? ApiKey.Available)?.trafikVerketKey ?: ""
+        ) }
+
         Row {
             TextField(
-                value =
-                    if (placeholderKey is ApiKey.NotAvailable) ""
-                    else (placeholderKey as ApiKey.Available).apiKey,
+                value = placeholderKey,
                 onValueChange = { new ->
-                    placeholderKey =
-                        if (new.isBlank()) ApiKey.NotAvailable
-                        else ApiKey.Available(apiKey = new)
+                    placeholderKey = new
                 },
                 placeholder = {
                     Text(
@@ -119,7 +130,7 @@ fun ApiKeyPreferenceRow(modifier: Modifier = Modifier) {
                     )
                 },
                 singleLine = true,
-                isError = placeholderKey is ApiKey.NotAvailable || (placeholderKey as ApiKey.Available).apiKey.isBlank(),
+                isError = placeholderKey.isBlank(),
                 shape = RoundedCornerShape(
                     topStart = RoundedCornerConstants.ROUNDING_MEDIUM,
                     bottomStart = RoundedCornerConstants.ROUNDING_MEDIUM
@@ -155,9 +166,7 @@ fun ApiKeyPreferenceRow(modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .clip(CircleShape)
                         .clickable {
-                            mainViewModel.settings.user.setApiKey(
-                                key = placeholderKey
-                            )
+                            setKey(placeholderKey)
                         }
                         .padding(4.dp)
                 )

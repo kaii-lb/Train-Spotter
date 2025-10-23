@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
@@ -40,8 +40,8 @@ fun TrainDetailTableElement(
             position = position
         ),
         additionalContentMaxWidth = 88.dp,
-        modifier = Modifier.height(
-            if (arrival != departure && arrival.isNotBlank() && departure.isNotBlank()) 96.dp
+        modifier = Modifier.heightIn(
+            min = if (arrival != departure && arrival.isNotBlank() && departure.isNotBlank()) 96.dp
             else 80.dp
         ),
         additionalContent = {
@@ -67,6 +67,7 @@ fun TrainDetailTableElement(
                                 .rotate(90f)
                                 .wrapContentSize(),
                             fontSize = TextStylingConstants.SIZE_EXTRA_SMALL,
+                            fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
                         )
 

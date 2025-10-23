@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.kaii.trafikverkettracker.api.Alert
+import com.kaii.trafikverkettracker.api.LocationShortCodeMap
 import com.kaii.trafikverkettracker.api.Stop
 import com.kaii.trafikverkettracker.api.StopGroup
 import com.kaii.trafikverkettracker.compose.screens.LoginScreen
@@ -57,6 +58,10 @@ class MainActivity : ComponentActivity() {
                 )
 
                 val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = ApiKey.NotAvailable)
+
+                // preload short code map for performance reasons (unknown if significant)
+                LocationShortCodeMap.preloadMap(context = applicationContext)
+
                 CompositionLocalProvider(
                     LocalNavController provides navController,
                     LocalMainViewModel provides mainViewModel
@@ -106,14 +111,14 @@ class MainActivity : ComponentActivity() {
                 val screen = it.toRoute<Screens.TimeTable>()
 
                 TimeTableScreen(
-                    apiKey = screen.apiKey,
+                    apiKey = (apiKey as ApiKey.Available).realtimeKey,
                     stopGroup = screen.stopGroup
                 )
             }
 
             composable<Screens.Search> {
                 SearchScreen(
-                    apiKey = (apiKey as ApiKey.Available).apiKey
+                    apiKey = (apiKey as ApiKey.Available)
                 )
             }
 
@@ -124,7 +129,7 @@ class MainActivity : ComponentActivity() {
             composable<Screens.TrainDetails> {
                 val screen = it.toRoute<Screens.TrainDetails>()
                 TrainDetailsScreen(
-                    apiKey = screen.apiKey,
+                    apiKey = (apiKey as ApiKey.Available).trafikVerketKey,
                     trainId = screen.trainId
                 )
             }

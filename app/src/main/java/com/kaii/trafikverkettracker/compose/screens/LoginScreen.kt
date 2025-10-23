@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.kaii.trafikverkettracker.LocalMainViewModel
 import com.kaii.trafikverkettracker.R
 import com.kaii.trafikverkettracker.api.RealtimeClient
+import com.kaii.trafikverkettracker.api.TrafikVerketClient
 import com.kaii.trafikverkettracker.compose.widgets.ApiKeyExplanationDialog
 import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.RoundedCornerConstants
@@ -63,28 +64,60 @@ fun LoginScreen(
             ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            var apiKey by rememberSaveable { mutableStateOf("") }
+            var realtimeKey by rememberSaveable { mutableStateOf("") }
+            var trafikVerketKey by rememberSaveable { mutableStateOf("") }
 
             TextField(
-                value = apiKey,
+                value = realtimeKey,
                 onValueChange = { new ->
-                    apiKey = new
+                    realtimeKey = new
                 },
                 placeholder = {
                     Text(
-                        text = stringResource(id = R.string.login_api_key)
+                        text = stringResource(id = R.string.login_api_key_realtime)
                     )
                 },
                 prefix = {
                     Icon(
                         painter = painterResource(id = R.drawable.key),
-                        contentDescription = stringResource(id = R.string.login_api_key),
+                        contentDescription = stringResource(id = R.string.login_api_key_realtime),
                         modifier = Modifier
                             .padding(end = 8.dp)
                     )
                 },
                 singleLine = true,
-                isError = apiKey.isBlank(),
+                isError = realtimeKey.isBlank(),
+                shape = RoundedCornerShape(RoundedCornerConstants.ROUNDING_MEDIUM),
+                colors = TextFieldDefaults.colors(
+                    errorIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+            )
+
+            TextField(
+                value = trafikVerketKey,
+                onValueChange = { new ->
+                    trafikVerketKey = new
+                },
+                placeholder = {
+                    Text(
+                        text = stringResource(id = R.string.login_api_key_trafikverket)
+                    )
+                },
+                prefix = {
+                    Icon(
+                        painter = painterResource(id = R.drawable.key),
+                        contentDescription = stringResource(id = R.string.login_api_key_trafikverket),
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                    )
+                },
+                singleLine = true,
+                isError = trafikVerketKey.isBlank(),
                 shape = RoundedCornerShape(RoundedCornerConstants.ROUNDING_MEDIUM),
                 colors = TextFieldDefaults.colors(
                     errorIndicatorColor = Color.Transparent,
@@ -128,17 +161,28 @@ fun LoginScreen(
                         val realtimeClient =
                             RealtimeClient(
                                 context = context,
-                                apiKey = apiKey
+                                apiKey = realtimeKey
+                            )
+                        val trafikVerketClient =
+                            TrafikVerketClient(
+                                context = context,
+                                apiKey = trafikVerketKey
                             )
 
-                        val response = realtimeClient.findStopGroups("malmö")
+                        val response1 = realtimeClient.findStopGroups(name = "malmö")
+                        val response2 = trafikVerketClient.getRouteDataForId(trainId = "1778")
 
-                        if (response != null) {
-                            mainViewModel.settings.user.setApiKey(ApiKey.Available(apiKey = apiKey))
+                        if (response1 != null && response2.isNotEmpty()) {
+                            mainViewModel.settings.user.setApiKey(
+                                ApiKey.Available(
+                                    realtimeKey = realtimeKey,
+                                    trafikVerketKey = trafikVerketKey
+                                )
+                            )
                         }
                     }
                 },
-                enabled = apiKey.isNotBlank(),
+                enabled = realtimeKey.isNotBlank() && trafikVerketKey.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
             ) {

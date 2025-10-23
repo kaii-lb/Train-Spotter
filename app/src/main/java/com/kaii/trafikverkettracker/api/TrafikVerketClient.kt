@@ -27,7 +27,7 @@ class TrafikVerketClient(
     // TODO: switch over to actual TrafikVerket API key impl
     private fun getTrainAnnouncement(trainId: String) = """
         <REQUEST>
-          <LOGIN authenticationkey="9cdcfebeccf04485aa946fbbd7579f59" />
+          <LOGIN authenticationkey="$apiKey" />
           <QUERY objecttype="TrainAnnouncement" schemaversion="1.1" limit="100" orderby="AdvertisedTimeAtLocation">
             <FILTER>
                 <AND>
@@ -103,7 +103,7 @@ class TrafikVerketClient(
                     )
                 } else {
                     map[key] = LocationDetails(
-                        name = arrival.locationSignature ?: "",
+                        name = LocationShortCodeMap.getName(code = arrival.locationSignature),
                         track = arrival.trackAtLocation ?: "Unknown",
                         arrivalTime = arrival.advertisedTimeAtLocation ?: "",
                         departureTime = ""
@@ -120,7 +120,7 @@ class TrafikVerketClient(
                     )
                 } else {
                     map[key] = LocationDetails(
-                        name = departure.locationSignature ?: "",
+                        name = LocationShortCodeMap.getName(code = departure.locationSignature),
                         track = departure.trackAtLocation ?: "Unknown",
                         arrivalTime = "",
                         departureTime = departure.advertisedTimeAtLocation ?: ""
