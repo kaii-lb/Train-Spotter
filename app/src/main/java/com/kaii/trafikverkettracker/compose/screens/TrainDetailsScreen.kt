@@ -1,5 +1,9 @@
 package com.kaii.trafikverkettracker.compose.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,6 +31,7 @@ import com.kaii.trafikverkettracker.LocalNavController
 import com.kaii.trafikverkettracker.R
 import com.kaii.trafikverkettracker.api.LocationDetails
 import com.kaii.trafikverkettracker.api.TrafikVerketClient
+import com.kaii.trafikverkettracker.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trafikverkettracker.compose.widgets.TrainDetailTableElement
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.helpers.ServerConstants
@@ -65,6 +70,7 @@ fun TrainDetailsScreen(
         val announcementsKeys = remember { mutableStateListOf<String>() } // so its sorted
         val announcements = remember { mutableStateMapOf<String, LocationDetails>() }
 
+        var isRefreshing by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
             while (true) {
                 val new = trafikVerketClient.getRouteDataForId(trainId = trainId)
@@ -74,12 +80,13 @@ fun TrainDetailsScreen(
 
                 announcementsKeys.clear()
                 announcementsKeys.addAll(new.keys)
+                isRefreshing = false
 
                 delay(ServerConstants.UPDATE_TIME)
             }
         }
 
-        var isRefreshing by remember { mutableStateOf(false) }
+
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = {
@@ -102,18 +109,38 @@ fun TrainDetailsScreen(
             modifier = Modifier
                 .padding(innerPadding)
         ) {
+
             JetLimeColumn(
                 listState = listState,
-                itemsList = ItemsList(announcementsKeys),
+                itemsList = ItemsList(
+                    if (isRefreshing && announcementsKeys.isEmpty()) {
+                        (0..9).toList()
+                    } else {
+                        announcementsKeys
+                    }
+                ),
                 style = JetLimeDefaults.columnStyle(
                     itemSpacing = 16.dp,
                 ),
                 contentPadding = PaddingValues(16.dp)
             ) { _, item, position ->
-                TrainDetailTableElement(
-                    item = announcements[item]!!,
-                    position = position
-                )
+                AnimatedContent(
+                    targetState = isRefreshing,
+                    transitionSpec = {
+                        fadeIn().togetherWith(fadeOut())
+                    }
+                ) { state ->
+                    if (state) {
+                        TableShimmerLoadingElement(
+                            position = position
+                        )
+                    } else {
+                        TrainDetailTableElement(
+                            item = announcements[item]!!,
+                            position = position
+                        )
+                    }
+                }
             }
         }
     }

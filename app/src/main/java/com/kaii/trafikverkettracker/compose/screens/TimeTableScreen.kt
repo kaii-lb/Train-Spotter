@@ -1,5 +1,9 @@
 package com.kaii.trafikverkettracker.compose.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
@@ -29,6 +33,8 @@ import com.kaii.trafikverkettracker.api.ArrivalsResponse
 import com.kaii.trafikverkettracker.api.DeparturesResponse
 import com.kaii.trafikverkettracker.api.RealtimeClient
 import com.kaii.trafikverkettracker.api.StopGroup
+import com.kaii.trafikverkettracker.api.TimetableEntry
+import com.kaii.trafikverkettracker.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trafikverkettracker.compose.widgets.TimeTableElement
 import com.kaii.trafikverkettracker.compose.widgets.TimeTableType
 import com.kaii.trafikverkettracker.compose.widgets.TimeTableTypeDisplay
@@ -78,6 +84,7 @@ fun TimeTableScreen(
             )
         }
 
+        var isRefreshing by remember { mutableStateOf(true) }
         var previousType by remember { mutableStateOf(type) }
         LaunchedEffect(type) {
             while (true) {
@@ -91,12 +98,12 @@ fun TimeTableScreen(
                     listState.scrollToItem(0)
                     previousType = type
                 }
+                isRefreshing = false
 
                 delay(ServerConstants.UPDATE_TIME)
             }
         }
 
-        var isRefreshing by remember { mutableStateOf(false) }
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = {
@@ -117,21 +124,41 @@ fun TimeTableScreen(
             modifier = Modifier
                 .padding(innerPadding)
         ) {
+            val items =
+                if (type == TimeTableType.Arrivals) arrivals?.arrivals ?: emptyList()
+                else departures?.departures ?: emptyList()
+
             JetLimeColumn(
                 listState = listState,
                 itemsList = ItemsList(
-                    if (type == TimeTableType.Arrivals) arrivals?.arrivals ?: emptyList()
-                    else departures?.departures ?: emptyList()
+                    if (isRefreshing && items.isEmpty()) {
+                        (0..9).toList()
+                    } else {
+                        items
+                    }
                 ),
                 style = JetLimeDefaults.columnStyle(
                     itemSpacing = 16.dp,
                 ),
                 contentPadding = PaddingValues(16.dp)
             ) { _, item, position ->
-                TimeTableElement(
-                    item = item,
-                    position = position
-                )
+                AnimatedContent(
+                    targetState = isRefreshing,
+                    transitionSpec = {
+                        fadeIn().togetherWith(fadeOut())
+                    }
+                ) { state ->
+                    if (state) {
+                        TableShimmerLoadingElement(
+                            position = position
+                        )
+                    } else {
+                        TimeTableElement(
+                            item = item as TimetableEntry,
+                            position = position
+                        )
+                    }
+                }
             }
         }
     }

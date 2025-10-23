@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.kaii.trafikverkettracker.R
+import com.kaii.trafikverkettracker.helpers.RoundedCornerConstants
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -116,6 +118,7 @@ fun SearchField(
                 onDismissRequest = {
                     expanded = false
                 },
+                shape = RoundedCornerShape(size = RoundedCornerConstants.ROUNDING_LARGE)
             ) {
                 SearchMode.entries.forEach { mode ->
                     DropdownMenuItem(

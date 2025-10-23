@@ -39,6 +39,7 @@ import com.kaii.trafikverkettracker.compose.widgets.SearchField
 import com.kaii.trafikverkettracker.compose.widgets.SearchItem
 import com.kaii.trafikverkettracker.compose.widgets.SearchItemPositon
 import com.kaii.trafikverkettracker.compose.widgets.SearchMode
+import com.kaii.trafikverkettracker.compose.widgets.SearchShimmerLoadingItem
 import com.kaii.trafikverkettracker.compose.widgets.StopSearchItem
 import com.kaii.trafikverkettracker.datastore.ApiKey
 import com.kaii.trafikverkettracker.helpers.Screens
@@ -85,6 +86,7 @@ fun SearchScreen(
             var isError by remember { mutableStateOf(false) }
             var searchMode by remember { mutableStateOf(SearchMode.Station) }
             var foundTrain by remember { mutableStateOf<Pair<LocationDetails, LocationDetails>?>(null) }
+            var isSearching by remember { mutableStateOf(false) }
 
             SearchField(
                 text = searchedText,
@@ -106,6 +108,10 @@ fun SearchScreen(
                             return@launch
                         }
 
+                        isSearching = true
+                        stopGroups.clear()
+                        foundTrain = null
+
                         if (searchMode == SearchMode.Station) {
                             val new = realtimeClient.findStopGroups(name = searchedText.trim())?.stopGroups ?: emptyList()
 
@@ -118,10 +124,9 @@ fun SearchScreen(
 
                             isError = new.isEmpty()
 
-                            foundTrain =
-                                if (new.isNotEmpty()) Pair(new.values.first(), new.values.last())
-                                else null
+                            if (new.isNotEmpty()) foundTrain = Pair(new.values.first(), new.values.last())
                         }
+                        isSearching = false
                     }
                 }
             )
@@ -129,6 +134,21 @@ fun SearchScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             LazyColumn {
+                if (isSearching) {
+                    items(
+                        count = 10
+                    ) { index ->
+                        SearchShimmerLoadingItem(
+                            position =
+                                if (stopGroups.size == 1) SearchItemPositon.Single
+                                else if (index == 0) SearchItemPositon.Top
+                                else if (index == stopGroups.size - 1) SearchItemPositon.Bottom
+                                else SearchItemPositon.Middle,
+                        )
+                    }
+                }
+
+
                 items(
                     count = stopGroups.size,
                     key = { index ->
