@@ -27,8 +27,8 @@ import com.kaii.trafikverkettracker.api.Alert
 import com.kaii.trafikverkettracker.api.Stop
 import com.kaii.trafikverkettracker.api.StopGroup
 import com.kaii.trafikverkettracker.compose.screens.LoginScreen
+import com.kaii.trafikverkettracker.compose.screens.SearchScreen
 import com.kaii.trafikverkettracker.compose.screens.Settings
-import com.kaii.trafikverkettracker.compose.screens.StopSearchScreen
 import com.kaii.trafikverkettracker.compose.screens.TimeTableScreen
 import com.kaii.trafikverkettracker.compose.screens.TrainDetailsScreen
 import com.kaii.trafikverkettracker.datastore.ApiKey
@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity() {
             }
 
             composable<Screens.Search> {
-                StopSearchScreen(
+                SearchScreen(
                     apiKey = (apiKey as ApiKey.Available).apiKey
                 )
             }

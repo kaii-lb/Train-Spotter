@@ -11,6 +11,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.time.ExperimentalTime
 
+@Suppress("unused")
 @Serializable
 enum class TransportMode {
     @SerialName("BUS")
@@ -27,6 +28,9 @@ enum class TransportMode {
 
     @SerialName("TRAM")
     TRAM,
+
+    @SerialName("BOAT")
+    Boat
 }
 
 @Serializable

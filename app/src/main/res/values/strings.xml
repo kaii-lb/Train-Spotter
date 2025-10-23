@@ -23,11 +23,16 @@
     <string name="timetable_train_canceled">This train has been canceled</string>
     <string name="timetable_delay">Delay: %s</string>
 
-    <!--  Stop Search  -->
+    <!--  Stop/Train Search  -->
     <string name="search">Search</string>
     <string name="search_transport_modes">Transport By: %s</string>
+    <string name="search_invalid_input">Couldn\'t find a match</string>
+    <string name="search_train_route">%1$s to %2$s</string>
+    <string name="search_train_time">Time: %1$s to %2$s</string>
 
     <!--  Misc  -->
     <string name="close">Close</string>
     <string name="okay">Okay</string>
+    <string name="train">Train</string>
+    <string name="station">Station</string>
 </resources>

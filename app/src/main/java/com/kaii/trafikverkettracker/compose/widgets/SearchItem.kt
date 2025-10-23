@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,7 +29,7 @@ import com.kaii.trafikverkettracker.api.StopGroup
 import com.kaii.trafikverkettracker.helpers.RoundedCornerConstants
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
 
-enum class StopSearchItemPositon {
+enum class SearchItemPositon {
     Top,
     Middle,
     Bottom,
@@ -36,23 +37,25 @@ enum class StopSearchItemPositon {
 }
 
 @Composable
-fun StopSearchItem(
-    stop: StopGroup,
-    position: StopSearchItemPositon,
+fun SearchItem(
+    name: String,
+    description: String,
     modifier: Modifier = Modifier,
+    position: SearchItemPositon,
+    errorContent: @Composable RowScope.() -> Unit = {},
     onClick: () -> Unit
 ) {
     val shape = when (position) {
-        StopSearchItemPositon.Single -> RoundedCornerShape(size = RoundedCornerConstants.ROUNDING_MEDIUM)
+        SearchItemPositon.Single -> RoundedCornerShape(size = RoundedCornerConstants.ROUNDING_MEDIUM)
 
-        StopSearchItemPositon.Top -> RoundedCornerShape(
+        SearchItemPositon.Top -> RoundedCornerShape(
             topStart = RoundedCornerConstants.ROUNDING_MEDIUM,
             topEnd = RoundedCornerConstants.ROUNDING_MEDIUM
         )
 
-        StopSearchItemPositon.Middle -> RoundedCornerShape(size = 0.dp)
+        SearchItemPositon.Middle -> RoundedCornerShape(size = 0.dp)
 
-        StopSearchItemPositon.Bottom -> RoundedCornerShape(
+        SearchItemPositon.Bottom -> RoundedCornerShape(
             bottomStart = RoundedCornerConstants.ROUNDING_MEDIUM,
             bottomEnd = RoundedCornerConstants.ROUNDING_MEDIUM
         )
@@ -71,7 +74,7 @@ fun StopSearchItem(
                 val strokeWidth = 0.5f.dp.toPx() * density
                 val y = size.height - strokeWidth / 2
 
-                if (position != StopSearchItemPositon.Bottom && position != StopSearchItemPositon.Single) {
+                if (position != SearchItemPositon.Bottom && position != SearchItemPositon.Single) {
                     drawLine(
                         color = separatorColor,
                         start = Offset(8.dp.toPx(), y),
@@ -90,7 +93,7 @@ fun StopSearchItem(
                 .weight(1f)
         ) {
             Text(
-                text = stop.name,
+                text = name,
                 textAlign = TextAlign.Start,
                 fontWeight = FontWeight.Bold,
                 fontSize = TextStylingConstants.SIZE_MEDIUM,
@@ -98,24 +101,43 @@ fun StopSearchItem(
             )
 
             Text(
-                text = stringResource(
-                    id = R.string.search_transport_modes,
-                    stop.transportModes.joinToString {
-                        it.name
-                    }
-                ),
+                text = description,
                 textAlign = TextAlign.Start,
                 fontSize = TextStylingConstants.SIZE_SMALL,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
         }
 
-        if (stop.stops.any { it.alerts.isNotEmpty() }) {
-            Icon(
-                painter = painterResource(id = R.drawable.warning),
-                contentDescription = "Alert!",
-                tint = MaterialTheme.colorScheme.error
-            )
-        }
+        errorContent()
     }
+}
+
+@Composable
+fun StopSearchItem(
+    stop: StopGroup,
+    position: SearchItemPositon,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    SearchItem(
+        name = stop.name,
+        description = stringResource(
+            id = R.string.search_transport_modes,
+            stop.transportModes.joinToString {
+                it.name
+            }
+        ),
+        position = position,
+        modifier = modifier,
+        errorContent = {
+            if (stop.stops.any { it.alerts.isNotEmpty() }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.warning),
+                    contentDescription = "Alert!",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        onClick = onClick
+    )
 }

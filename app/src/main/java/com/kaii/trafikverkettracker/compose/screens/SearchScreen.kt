@@ -31,18 +31,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kaii.trafikverkettracker.LocalNavController
 import com.kaii.trafikverkettracker.R
+import com.kaii.trafikverkettracker.api.LocationDetails
 import com.kaii.trafikverkettracker.api.RealtimeClient
 import com.kaii.trafikverkettracker.api.StopGroup
-import com.kaii.trafikverkettracker.compose.widgets.StopSearchField
+import com.kaii.trafikverkettracker.api.TrafikVerketClient
+import com.kaii.trafikverkettracker.compose.widgets.SearchField
+import com.kaii.trafikverkettracker.compose.widgets.SearchItem
+import com.kaii.trafikverkettracker.compose.widgets.SearchItemPositon
+import com.kaii.trafikverkettracker.compose.widgets.SearchMode
 import com.kaii.trafikverkettracker.compose.widgets.StopSearchItem
-import com.kaii.trafikverkettracker.compose.widgets.StopSearchItemPositon
 import com.kaii.trafikverkettracker.helpers.Screens
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
-fun StopSearchScreen(
+fun SearchScreen(
     apiKey: String,
     modifier: Modifier = Modifier
 ) {
@@ -69,58 +73,121 @@ fun StopSearchScreen(
                     apiKey = apiKey
                 )
             }
+            val trafikVerketClient = remember {
+                TrafikVerketClient(
+                    context = context,
+                    apiKey = apiKey
+                )
+            }
 
-            StopSearchField(
+            val navController = LocalNavController.current
+            var isError by remember { mutableStateOf(false) }
+            var searchMode by remember { mutableStateOf(SearchMode.Station) }
+            var foundTrain by remember { mutableStateOf<Pair<LocationDetails, LocationDetails>?>(null) }
+
+            SearchField(
                 text = searchedText,
+                searchMode = searchMode,
+                isError = isError,
                 setText = {
+                    isError = false
                     searchedText = it
                 },
-                placeholder = "Skurup Station",
-                icon = R.drawable.location_on,
+                setSearchMode = { mode ->
+                    searchMode = mode
+                },
                 onSearch = {
                     coroutineScope.launch(Dispatchers.IO) {
-                        if (searchedText.isBlank()) return@launch
+                        if (searchedText.isBlank()) {
+                            foundTrain = null
+                            stopGroups.clear()
 
-                        val new = realtimeClient.findStopGroups(name = searchedText.trim())?.stopGroups ?: emptyList()
-                        stopGroups.addAll(new - stopGroups)
-                        stopGroups.retainAll(new)
+                            return@launch
+                        }
+
+                        if (searchMode == SearchMode.Station) {
+                            val new = realtimeClient.findStopGroups(name = searchedText.trim())?.stopGroups ?: emptyList()
+
+                            isError = new.isEmpty()
+
+                            stopGroups.addAll(new - stopGroups)
+                            stopGroups.retainAll(new)
+                        } else {
+                            val new = trafikVerketClient.getRouteDataForId(trainId = searchedText)
+
+                            isError = new.isEmpty()
+
+                            foundTrain =
+                                if (new.isNotEmpty()) Pair(new.values.first(), new.values.last())
+                                else null
+                        }
                     }
                 }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val navController = LocalNavController.current
             LazyColumn {
                 items(
                     count = stopGroups.size,
                     key = { index ->
-                        stopGroups[index].id
+                        if (index in 0..stopGroups.size - 1) {
+                            stopGroups[index].id
+                        } else {
+                            index
+                        }
                     }
                 ) { index ->
-                    val stopGroup = stopGroups[index]
+                    if (index in 0..stopGroups.size - 1) {
+                        val stopGroup = stopGroups[index]
 
-                    StopSearchItem(
-                        stop = stopGroup,
-                        position =
-                            if (stopGroups.size == 1) StopSearchItemPositon.Single
-                            else if (index == 0) StopSearchItemPositon.Top
-                            else if (index == stopGroups.size - 1) StopSearchItemPositon.Bottom
-                            else StopSearchItemPositon.Middle,
-                        modifier = Modifier
-                            .animateItem()
-                    ) {
-                        navController.navigate(
-                            route = Screens.TimeTable(
-                                apiKey = apiKey,
-                                stopGroup = stopGroup
+                        StopSearchItem(
+                            stop = stopGroup,
+                            position =
+                                if (stopGroups.size == 1) SearchItemPositon.Single
+                                else if (index == 0) SearchItemPositon.Top
+                                else if (index == stopGroups.size - 1) SearchItemPositon.Bottom
+                                else SearchItemPositon.Middle,
+                            modifier = Modifier
+                                .animateItem()
+                        ) {
+                            navController.navigate(
+                                route = Screens.TimeTable(
+                                    apiKey = apiKey,
+                                    stopGroup = stopGroup
+                                )
                             )
-                        )
+                        }
+                    }
+                }
+
+                foundTrain?.let {
+                    item {
+                        SearchItem(
+                            name = stringResource(
+                                id = R.string.search_train_route,
+                                it.first.name,
+                                it.second.name
+                            ),
+                            description = stringResource(
+                                id = R.string.search_train_time,
+                                it.first.departureTimeFormatted,
+                                it.second.arrivalTimeFormatted
+                            ),
+                            position = SearchItemPositon.Single
+                        ) {
+                            navController.navigate(
+                                route = Screens.TrainDetails(
+                                    apiKey = apiKey,
+                                    trainId = searchedText.trim()
+                                )
+                            )
+                        }
                     }
                 }
             }
 
-            if (stopGroups.isEmpty()) {
+            if (isError) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -131,7 +198,11 @@ fun StopSearchScreen(
                     contentAlignment = Alignment.TopCenter
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.wrong_location),
+                        painter = painterResource(
+                            id =
+                                if (searchMode == SearchMode.Station) R.drawable.wrong_location
+                                else R.drawable.train_not_found
+                        ),
                         contentDescription = "No such location found",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier
