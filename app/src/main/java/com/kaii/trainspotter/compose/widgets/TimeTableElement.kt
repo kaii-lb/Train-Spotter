@@ -1,5 +1,6 @@
 package com.kaii.trainspotter.compose.widgets
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,8 +39,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.TimetableEntry
+import com.kaii.trainspotter.api.TransportMode
+import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.formatDelay
 import com.kaii.trainspotter.helpers.formatSecondsToTime
@@ -80,10 +84,20 @@ fun TimeTableElement(
             }
         }
     ) {
+        val navController = LocalNavController.current
         Card(
             modifier = modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .clickable {
+                    if (item.route.transportMode == TransportMode.Train || item.route.transportMode == TransportMode.Metro) {
+                        navController.navigate(
+                            route = Screens.TrainDetails(
+                                trainId = item.trip.technicalNumber.toString()
+                            )
+                        )
+                    }
+                },
         ) {
             Row(
                 modifier = Modifier

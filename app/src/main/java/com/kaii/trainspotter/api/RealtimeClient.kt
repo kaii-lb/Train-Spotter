@@ -24,54 +24,75 @@ class RealtimeClient(
     suspend fun fetchDepartures(
         stopId: String
     ): DeparturesResponse? {
-        val request = Request.Builder()
-            .url("$endpoint/${departures}/${stopId}?key=${apiKey}")
-            .build()
+        try {
+            val request = Request.Builder()
+                .url("$endpoint/${departures}/${stopId}?key=${apiKey}")
+                .build()
 
-        val call = client.newCall(request)
-        val response = call.executeAsync()
+            val call = client.newCall(request)
+            val response = call.executeAsync()
 
-        val body = response.body.string()
+            val body = response.body.string()
 
-        Log.d(TAG, "Body for \"$endpoint/${departures}/${stopId}?key=${apiKey}\" is \n $body")
+            Log.d(TAG, "Body for \"$endpoint/${departures}/${stopId}?key=${apiKey}\" is \n $body")
 
-        return if (response.isSuccessful && body != "") json.decodeFromString(body)
-        else null
+            return if (response.isSuccessful && body != "") json.decodeFromString(body)
+            else null
+        } catch (e: Throwable) {
+            Log.e(TAG, e.toString())
+            e.printStackTrace()
+
+            return null
+        }
     }
 
     suspend fun fetchArrivals(
         stopId: String
     ): ArrivalsResponse? {
-        val request = Request.Builder()
-            .url("$endpoint/${arrivals}/${stopId}?key=${apiKey}")
-            .build()
+        try {
+            val request = Request.Builder()
+                .url("$endpoint/${arrivals}/${stopId}?key=${apiKey}")
+                .build()
 
-        val call = client.newCall(request)
-        val response = call.executeAsync()
+            val call = client.newCall(request)
+            val response = call.executeAsync()
 
-        val body = response.body.string()
+            val body = response.body.string()
 
-        Log.d(TAG, "Body for \"$endpoint/${arrivals}/${stopId}?key=${apiKey}\" is \n $body")
+            Log.d(TAG, "Body for \"$endpoint/${arrivals}/${stopId}?key=${apiKey}\" is \n $body")
 
-        return if (response.isSuccessful && body != "") json.decodeFromString(body)
-        else null
+            return if (response.isSuccessful && body != "") json.decodeFromString(body)
+            else null
+        } catch (e: Throwable) {
+            Log.e(TAG, e.toString())
+            e.printStackTrace()
+
+            return null
+        }
     }
 
     suspend fun findStopGroups(
         name: String
     ): StopsResponse? {
-        val request = Request.Builder()
-            .url("$endpoint/${stops}/name/${name}?key=${apiKey}")
-            .build()
+        try {
+            val request = Request.Builder()
+                .url("$endpoint/${stops}/name/${name}?key=${apiKey}")
+                .build()
 
-        val call = client.newCall(request)
-        val response = call.executeAsync()
+            val call = client.newCall(request)
+            val response = call.executeAsync()
 
-        val body = response.body.string()
+            val body = response.body.string()
 
-        Log.d(TAG, "Body for \"$endpoint/${stops}/name/${name}?key=${apiKey}\" is \n $body")
+            Log.d(TAG, "Body for \"$endpoint/${stops}/name/${name}?key=${apiKey}\" is \n $body")
 
-        return if (response.isSuccessful && body != "") json.decodeFromString(body)
-        else null
+            return if (response.isSuccessful && body != "") json.decodeFromString(body)
+            else null
+        } catch (e: Throwable) {
+            Log.e(TAG, e.toString())
+            e.printStackTrace()
+
+            return null
+        }
     }
 }

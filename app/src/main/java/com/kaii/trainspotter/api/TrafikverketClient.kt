@@ -56,26 +56,33 @@ class TrafikverketClient(
     """.trimIndent()
 
     private suspend fun getTrainAnnouncementsForId(trainId: String): TrainAnnouncementResponse? {
-        val request = Request.Builder()
-            .url(endpoint)
-            .method(
-                method = "POST",
-                body = getTrainAnnouncement(trainId = trainId)
-                    .toRequestBody(
-                        contentType = "application/xml".toMediaType()
-                    )
-            )
-            .build()
+        try {
+            val request = Request.Builder()
+                .url(endpoint)
+                .method(
+                    method = "POST",
+                    body = getTrainAnnouncement(trainId = trainId)
+                        .toRequestBody(
+                            contentType = "application/xml".toMediaType()
+                        )
+                )
+                .build()
 
-        val call = client.newCall(request)
-        val response = call.executeAsync()
+            val call = client.newCall(request)
+            val response = call.executeAsync()
 
-        val body = response.body.string()
+            val body = response.body.string()
 
-        Log.d(TAG, "BODY $body")
+            Log.d(TAG, "BODY $body")
 
-        return if (response.isSuccessful && body != "") json.decodeFromString(body)
-        else null
+            return if (response.isSuccessful && body != "") json.decodeFromString(body)
+            else null
+        } catch (e: Exception) {
+            Log.e(TAG, e.toString())
+            e.printStackTrace()
+
+            return null
+        }
     }
 
     @OptIn(ExperimentalTime::class)

@@ -25,7 +25,7 @@ enum class TransportMode {
     Metro,
 
     @SerialName("TRAM")
-    TRAM,
+    Tram,
 
     @SerialName("BOAT")
     Boat
