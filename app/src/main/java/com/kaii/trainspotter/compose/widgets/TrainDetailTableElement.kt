@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.pushpal.jetlime.EventPointType
 import com.pushpal.jetlime.EventPosition
 import com.pushpal.jetlime.JetLimeEventDefaults
 import com.pushpal.jetlime.JetLimeExtendedEvent
@@ -57,7 +58,10 @@ fun TrainDetailTableElement(
 
     JetLimeExtendedEvent(
         style = JetLimeEventDefaults.eventStyle(
-            position = position
+            position = position,
+            pointType =
+                if (item.passed) EventPointType.Default
+                else EventPointType.EMPTY
         ),
         additionalContentMaxWidth = 88.dp,
         modifier = Modifier.heightIn(

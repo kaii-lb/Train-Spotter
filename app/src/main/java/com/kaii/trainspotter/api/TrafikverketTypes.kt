@@ -239,6 +239,7 @@ data class LocationDetails(
     val departureTime: String,
     val estimatedArrivalTime: String?,
     val estimatedDepartureTime: String?,
+    val passed: Boolean,
     val delay: String,
     val productInfo: String
 ) {

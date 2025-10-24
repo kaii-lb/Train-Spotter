@@ -131,6 +131,7 @@ class TrafikverketClient(
                         estimatedDepartureTime = null,
                         delay = delay,
                         productInfo = arrival.productInformation.firstOrNull()?.description ?: "", // TODO: move to new impl
+                        passed = arrival.timeAtLocation != null
                     )
                 }
             }
@@ -167,6 +168,7 @@ class TrafikverketClient(
                         estimatedDepartureTime = departure.timeAtLocation ?: departure.estimatedTimeAtLocation,
                         delay = delay,
                         productInfo = departure.productInformation.firstOrNull()?.description ?: "", // TODO: move to new impl
+                        passed = departure.timeAtLocation != null
                     )
                 }
             }

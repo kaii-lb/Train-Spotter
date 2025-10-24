@@ -18,6 +18,6 @@ object RoundedCornerConstants {
 }
 
 object ServerConstants {
-    const val UPDATE_TIME = 60_000L
+    const val UPDATE_TIME = 30_000L
     const val REFRESH_TIME = 1000L
 }
