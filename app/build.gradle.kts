@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.kaii.trafikverkettracker"
+    namespace = "com.kaii.trainspotter"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.kaii.trafikverkettracker"
+        applicationId = "com.kaii.trainspotter"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.androidx.lifecycle)
 
     implementation(libs.org.jetbrains.kotlinx.serialization)
+    implementation(libs.org.jetbrains.kotlinx.datetime)
 
     implementation(libs.com.squareup.okhttp3)
     implementation(libs.com.squareup.okhttp3.coroutines)

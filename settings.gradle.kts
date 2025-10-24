@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TrafikVerket Tracker"
+rootProject.name = "Train Spotter"
 include(":app")
