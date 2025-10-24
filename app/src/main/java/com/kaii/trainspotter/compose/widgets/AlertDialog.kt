@@ -81,25 +81,28 @@ fun TrafikAlertDialog(
                                 .fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(height = 2.dp))
+                        if (alert.type.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(height = 2.dp))
 
-                        Text(
-                            text = alert.type,
-                            fontSize = TextStylingConstants.SIZE_EXTRA_SMALL,
-                            textAlign = TextAlign.Start,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        )
+                            Text(
+                                text = alert.type,
+                                fontSize = TextStylingConstants.SIZE_EXTRA_SMALL,
+                                textAlign = TextAlign.Start,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(height = 8.dp))
 
                         Text(
                             text = alert.text,
                             fontSize = TextStylingConstants.SIZE_SMALL,
+                            textAlign = TextAlign.Start,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
-                                .wrapContentSize()
+                                .fillMaxWidth()
                         )
                     }
                 }

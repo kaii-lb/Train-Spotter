@@ -4,26 +4,37 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ExperimentalComposeApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -32,14 +43,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
+import com.kaii.trainspotter.api.Alert
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.pushpal.jetlime.EventPointType
 import com.pushpal.jetlime.EventPosition
 import com.pushpal.jetlime.JetLimeEventDefaults
 import com.pushpal.jetlime.JetLimeExtendedEvent
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalComposeApi::class)
+@OptIn(ExperimentalComposeApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TrainDetailTableElement(
     item: LocationDetails,
@@ -189,79 +202,84 @@ fun TrainDetailTableElement(
                         )
                     }
                 }
+
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (item.canceled || item.deviations.any { it.code.lowercase().contains("inställd") }) {
+                        val tooltipState = rememberTooltipState(isPersistent = true)
+                        val coroutineScope = rememberCoroutineScope()
+
+                        TooltipBox(
+                            state = tooltipState,
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Start, 8.dp),
+                            tooltip = {
+                                PlainTooltip(
+                                    caretShape = TooltipDefaults.caretShape(),
+                                    content = {
+                                        Text(
+                                            text = stringResource(id = R.string.timetable_train_canceled)
+                                        )
+                                    }
+                                )
+                            }
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        if (tooltipState.isVisible) tooltipState.dismiss()
+                                        else tooltipState.show()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.dangerous),
+                                    contentDescription = stringResource(id = R.string.timetable_train_canceled),
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                )
+                            }
+                        }
+                    }
+
+                    if (item.deviations.isNotEmpty()) {
+                        var showDialog by remember { mutableStateOf(false) }
+
+                        if (showDialog) {
+                            TrafikAlertDialog(
+                                alerts = item.deviations.map {
+                                    Alert(
+                                        type = "",
+                                        title = it.code,
+                                        text = it.description
+                                    )
+                                },
+                                onDismiss = {
+                                    showDialog = false
+                                }
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                showDialog = true
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.warning),
+                                contentDescription = stringResource(id = R.string.timetable_alert),
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                            )
+                        }
+                    }
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun TimeInfoDialog(
-    item: LocationDetails,
-    modifier: Modifier = Modifier,
-    onDismiss: () -> Unit
-) {
-    DialogBase(
-        onDismiss = onDismiss,
-        modifier = modifier
-    ) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(all = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(
-                space = 8.dp,
-                alignment = Alignment.CenterVertically
-            ),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(id = R.string.timetable_time_info),
-                fontSize = TextStylingConstants.SIZE_LARGE,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-
-            Text(
-                text = stringResource(id = R.string.timetable_time_info_arrival_advertised, item.arrivalTimeFormatted),
-                fontSize = TextStylingConstants.SIZE_MEDIUM,
-                textAlign = TextAlign.Start,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-
-            Text(
-                text = stringResource(id = R.string.timetable_time_info_arrival_actual, item.estimatedArrivalTimeFormatted ?: item.arrivalTimeFormatted),
-                fontSize = TextStylingConstants.SIZE_MEDIUM,
-                textAlign = TextAlign.Start,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-
-            Text(
-                text = stringResource(id = R.string.timetable_time_info_departure_advertised, item.departureTimeFormatted),
-                fontSize = TextStylingConstants.SIZE_MEDIUM,
-                textAlign = TextAlign.Start,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-
-            Text(
-                text = stringResource(id = R.string.timetable_time_info_departure_actual, item.estimatedDepartureTimeFormatted ?: item.departureTimeFormatted),
-                fontSize = TextStylingConstants.SIZE_MEDIUM,
-                textAlign = TextAlign.Start,
-                modifier = Modifier
-                    .fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        FullWidthDialogButton(
-            text = stringResource(id = R.string.close),
-            onClick = onDismiss
-        )
     }
 }

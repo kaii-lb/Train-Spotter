@@ -1,5 +1,6 @@
 package com.kaii.trainspotter.api
 
+import com.kaii.trainspotter.R
 import com.kaii.trainspotter.helpers.formatSecondsToTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -81,7 +82,7 @@ data class TrainAnnouncement(
     val departureDateOTN: String? = null,
 
     @SerialName("Deviation")
-    val deviation: List<Information> = emptyList(),
+    val deviations: List<Information> = emptyList(),
 
     @SerialName("EstimatedTimeAtLocation")
     val estimatedTimeAtLocation: String? = null,
@@ -241,7 +242,9 @@ data class LocationDetails(
     val estimatedDepartureTime: String?,
     val passed: Boolean,
     val delay: String,
-    val productInfo: String
+    val productInfo: List<Information>,
+    val deviations: List<Information>,
+    val canceled: Boolean
 ) {
     @OptIn(ExperimentalTime::class)
     val arrivalTimeFormatted: String
@@ -290,4 +293,10 @@ data class LocationDetails(
                 ).epochSeconds
             )
         }
+}
+
+enum class TrainInformation(val type: Int) {
+    Owner(type = R.string.train_info_owner),
+    Operator(type = R.string.train_info_operator),
+    Product(type = R.string.train_info_product)
 }

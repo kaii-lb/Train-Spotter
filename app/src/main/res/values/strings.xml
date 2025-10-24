@@ -39,6 +39,12 @@
     <string name="search_train_route">%1$s to %2$s</string>
     <string name="search_train_time">Time: %1$s to %2$s</string>
 
+    <!--  Train Info  -->
+    <string name="train_info">Train Info</string>
+    <string name="train_info_owner">Owner: %s</string>
+    <string name="train_info_product">Product: %s</string>
+    <string name="train_info_operator">Operator: %s</string>
+
     <!--  Misc  -->
     <string name="close">Close</string>
     <string name="okay">Okay</string>

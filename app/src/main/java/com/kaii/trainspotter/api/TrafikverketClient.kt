@@ -51,6 +51,9 @@ class TrafikverketClient(
             <INCLUDE>EstimatedTimeAtLocation</INCLUDE>
             <INCLUDE>ProductInformation</INCLUDE>
             <INCLUDE>TimeAtLocation</INCLUDE>
+            <INCLUDE>Operator</INCLUDE>
+            <INCLUDE>InformationOwner</INCLUDE>
+            <INCLUDE>Deviation</INCLUDE>
           </QUERY>
         </REQUEST>
     """.trimIndent()
@@ -129,6 +132,33 @@ class TrafikverketClient(
                         estimatedArrivalTime = arrival.timeAtLocation ?: arrival.estimatedTimeAtLocation
                     )
                 } else {
+                    val productInfo = mutableListOf<Information>()
+                    if (arrival.productInformation.isNotEmpty()) {
+                        productInfo.addAll(
+                            arrival.productInformation.map {
+                                it.copy(
+                                    code = TrainInformation.Product.type.toString()
+                                )
+                            }
+                        )
+                    }
+                    if (arrival.informationOwner != null) {
+                        productInfo.add(
+                            Information(
+                                code = TrainInformation.Owner.type.toString(),
+                                description = arrival.informationOwner
+                            )
+                        )
+                    }
+                    if (arrival.operator != null) {
+                        productInfo.add(
+                            Information(
+                                code = TrainInformation.Operator.type.toString(),
+                                description = arrival.operator
+                            )
+                        )
+                    }
+
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = arrival.locationSignature),
                         track = arrival.trackAtLocation ?: "",
@@ -137,8 +167,10 @@ class TrafikverketClient(
                         departureTime = "",
                         estimatedDepartureTime = null,
                         delay = delay,
-                        productInfo = arrival.productInformation.firstOrNull()?.description ?: "", // TODO: move to new impl
-                        passed = arrival.timeAtLocation != null
+                        productInfo = productInfo,
+                        passed = arrival.timeAtLocation != null,
+                        deviations = arrival.deviations,
+                        canceled = arrival.canceled == true
                     )
                 }
             }
@@ -166,6 +198,33 @@ class TrafikverketClient(
                         estimatedDepartureTime = departure.estimatedTimeAtLocation
                     )
                 } else {
+                    val productInfo = mutableListOf<Information>()
+                    if (departure.productInformation.isNotEmpty()) {
+                        productInfo.addAll(
+                            departure.productInformation.map {
+                                it.copy(
+                                    code = TrainInformation.Product.type.toString()
+                                )
+                            }
+                        )
+                    }
+                    if (departure.informationOwner != null) {
+                        productInfo.add(
+                            Information(
+                                code = TrainInformation.Owner.type.toString(),
+                                description = departure.informationOwner
+                            )
+                        )
+                    }
+                    if (departure.operator != null) {
+                        productInfo.add(
+                            Information(
+                                code = TrainInformation.Operator.type.toString(),
+                                description = departure.operator
+                            )
+                        )
+                    }
+
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = departure.locationSignature),
                         track = departure.trackAtLocation ?: "",
@@ -174,8 +233,10 @@ class TrafikverketClient(
                         departureTime = departure.advertisedTimeAtLocation ?: "",
                         estimatedDepartureTime = departure.timeAtLocation ?: departure.estimatedTimeAtLocation,
                         delay = delay,
-                        productInfo = departure.productInformation.firstOrNull()?.description ?: "", // TODO: move to new impl
-                        passed = departure.timeAtLocation != null
+                        productInfo = productInfo,
+                        passed = departure.timeAtLocation != null,
+                        deviations = departure.deviations,
+                        canceled = departure.canceled == true
                     )
                 }
             }

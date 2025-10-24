@@ -33,10 +33,10 @@ output.json
 obj/
 .externalNativeBuild
 keys/
-/trafikverket_tracker_signed_debug.apk.idsig
-/trafikverket_tracker_signed_debug.apk
-/trafikverket_tracker_signed_release.apk
-/trafikverket_tracker_signed_release.apk.idsig
+/trainspotter_signed_debug.apk.idsig
+/trainspotter_signed_debug.apk
+/trainspotter_signed_release.apk
+/trainspotter_signed_release.apk.idsig
 /gradle/wrapper/gradle-wrapper.jar
 /gradlew
 /gradlew.bat

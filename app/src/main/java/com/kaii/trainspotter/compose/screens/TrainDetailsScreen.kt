@@ -4,9 +4,12 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,15 +27,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
+import com.kaii.trainspotter.api.Information
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.api.TrafikverketClient
+import com.kaii.trainspotter.api.TrainInformation
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
+import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.ServerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
@@ -56,9 +63,9 @@ fun TrainDetailsScreen(
         topBar = {
             TopBar(
                 trainId = trainId,
-                productInfo = announcements.values.firstOrNull {
-                    it.productInfo.isNotBlank()
-                }?.productInfo ?: ""
+                productInfo = announcements.values.flatMap {
+                    it.productInfo
+                }.distinct()
             )
         },
         modifier = modifier
@@ -154,7 +161,7 @@ fun TrainDetailsScreen(
 @Composable
 private fun TopBar(
     trainId: String,
-    productInfo: String,
+    productInfo: List<Information>,
     modifier: Modifier = Modifier
 ) {
     val navController = LocalNavController.current
@@ -173,12 +180,37 @@ private fun TopBar(
             }
         },
         title = {
-            Text(
-                text =
-                    if (productInfo.isNotBlank()) "$productInfo | $trainId"
-                    else "Train with ID: $trainId",
-                fontSize = TextStylingConstants.SIZE_LARGE
-            )
+            var showDialog by remember { mutableStateOf(false) }
+            val info = remember(productInfo) {
+                productInfo.find {
+                    it.code == TrainInformation.Product.type.toString()
+                }
+            }
+
+            if (showDialog) {
+                TrainInfoDialog(
+                    info = productInfo,
+                    onDismiss = {
+                        showDialog = false
+                    }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable {
+                        showDialog = true
+                    }
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text =
+                        if (info != null) "${info.description} | $trainId"
+                        else "Train with ID: $trainId",
+                    fontSize = TextStylingConstants.SIZE_LARGE
+                )
+            }
         },
         actions = {
             IconButton(
