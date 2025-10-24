@@ -229,7 +229,8 @@ data class LocationDetails(
     val track: String,
     val arrivalTime: String,
     val departureTime: String,
-    val delay: String
+    val delay: String,
+    val productInfo: String
 ) {
     @OptIn(ExperimentalTime::class)
     val arrivalTimeFormatted: String

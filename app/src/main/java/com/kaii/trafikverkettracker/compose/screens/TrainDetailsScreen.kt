@@ -49,10 +49,16 @@ fun TrainDetailsScreen(
     trainId: String,
     modifier: Modifier = Modifier
 ) {
+    val announcementsKeys = remember { mutableStateListOf<String>() } // so its sorted
+    val announcements = remember { mutableStateMapOf<String, LocationDetails>() }
+
     Scaffold(
         topBar = {
             TopBar(
-                trainId = trainId
+                trainId = trainId,
+                productInfo = announcements.values.firstOrNull {
+                    it.productInfo.isNotBlank()
+                }?.productInfo ?: ""
             )
         },
         modifier = modifier
@@ -67,8 +73,6 @@ fun TrainDetailsScreen(
         }
 
         val listState = rememberLazyListState()
-        val announcementsKeys = remember { mutableStateListOf<String>() } // so its sorted
-        val announcements = remember { mutableStateMapOf<String, LocationDetails>() }
 
         var isRefreshing by remember { mutableStateOf(true) }
         LaunchedEffect(Unit) {
@@ -150,6 +154,7 @@ fun TrainDetailsScreen(
 @Composable
 private fun TopBar(
     trainId: String,
+    productInfo: String,
     modifier: Modifier = Modifier
 ) {
     val navController = LocalNavController.current
@@ -169,7 +174,9 @@ private fun TopBar(
         },
         title = {
             Text(
-                text = "Train with ID: $trainId",
+                text =
+                    if (productInfo.isNotBlank()) "$productInfo | $trainId"
+                    else "Train with ID: $trainId",
                 fontSize = TextStylingConstants.SIZE_LARGE
             )
         },

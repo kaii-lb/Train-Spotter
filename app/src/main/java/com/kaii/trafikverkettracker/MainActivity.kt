@@ -16,6 +16,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -58,6 +59,12 @@ class MainActivity : ComponentActivity() {
                 )
 
                 val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = ApiKey.NotAvailable)
+                val savedApiKey = rememberSaveable(
+                    saver = ApiKey.Saver,
+                    inputs = arrayOf(apiKey)
+                ) {
+                    apiKey
+                }
 
                 // preload short code map for performance reasons (unknown if significant)
                 LocationShortCodeMap.preloadMap(context = applicationContext)
@@ -66,7 +73,7 @@ class MainActivity : ComponentActivity() {
                     LocalNavController provides navController,
                     LocalMainViewModel provides mainViewModel
                 ) {
-                    Content(apiKey = apiKey)
+                    Content(apiKey = savedApiKey)
                 }
             }
         }

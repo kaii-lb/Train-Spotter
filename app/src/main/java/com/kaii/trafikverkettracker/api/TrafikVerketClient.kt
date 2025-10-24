@@ -52,6 +52,7 @@ class TrafikVerketClient(
             <INCLUDE>LocationSignature</INCLUDE>
             <INCLUDE>TrackAtLocation</INCLUDE>
             <INCLUDE>EstimatedTimeAtLocation</INCLUDE>
+            <INCLUDE>ProductInformation</INCLUDE>
           </QUERY>
         </REQUEST>
     """.trimIndent()
@@ -124,7 +125,8 @@ class TrafikVerketClient(
                         track = arrival.trackAtLocation ?: "",
                         arrivalTime = arrival.estimatedTimeAtLocation ?: arrival.advertisedTimeAtLocation ?: "",
                         departureTime = "",
-                        delay = delay
+                        delay = delay,
+                        productInfo = arrival.productInformation.firstOrNull() ?: ""
                     )
                 }
             }
@@ -158,7 +160,8 @@ class TrafikVerketClient(
                         track = departure.trackAtLocation ?: "",
                         arrivalTime = "",
                         departureTime = departure.estimatedTimeAtLocation ?: departure.advertisedTimeAtLocation ?: "",
-                        delay = delay
+                        delay = delay,
+                        productInfo = departure.productInformation.firstOrNull() ?: ""
                     )
                 }
             }
