@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ExperimentalComposeApi
@@ -16,9 +18,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.kaii.trafikverkettracker.R
 import com.kaii.trafikverkettracker.api.LocationDetails
 import com.kaii.trafikverkettracker.helpers.TextStylingConstants
 import com.pushpal.jetlime.EventPosition
@@ -45,10 +52,17 @@ fun TrainDetailTableElement(
             else 80.dp
         ),
         additionalContent = {
-            Card {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor =
+                        if (item.delay.isNotBlank()) MaterialTheme.colorScheme.errorContainer
+                        else MaterialTheme.colorScheme.surfaceContainer
+                )
+            ) {
                 if (arrival != departure && arrival.isNotBlank() && departure.isNotBlank()) {
                     Column(
                         modifier = Modifier
+                            .heightIn(min = 80.dp)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -116,10 +130,27 @@ fun TrainDetailTableElement(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Text(
-                        text = "Track: ${item.track}",
-                        fontSize = TextStylingConstants.SIZE_MEDIUM
-                    )
+                    if (item.track.isNotBlank()) {
+                        Text(
+                            text = "Track: ${item.track}",
+                            fontSize = TextStylingConstants.SIZE_MEDIUM
+                        )
+                    }
+
+                    if (item.delay.isNotBlank()) {
+                        val delayString = stringResource(id = R.string.timetable_delay, item.delay).split(" ")
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(
+                                    SpanStyle(color = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    append(delayString[0] + " ")
+                                }
+
+                                append(delayString[1])
+                            },
+                        )
+                    }
                 }
             }
         }

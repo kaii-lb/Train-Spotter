@@ -228,12 +228,13 @@ data class LocationDetails(
     val name: String,
     val track: String,
     val arrivalTime: String,
-    val departureTime: String
+    val departureTime: String,
+    val delay: String
 ) {
     @OptIn(ExperimentalTime::class)
     val arrivalTimeFormatted: String
         get() {
-            if (arrivalTime.isBlank()) return  ""
+            if (arrivalTime.isBlank()) return ""
 
             return LocalDateTime.parse(
                 arrivalTime,

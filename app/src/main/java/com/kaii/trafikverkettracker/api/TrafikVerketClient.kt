@@ -3,6 +3,8 @@ package com.kaii.trafikverkettracker.api
 import android.content.Context
 import android.util.Log
 import com.kaii.trafikverkettracker.R
+import com.kaii.trafikverkettracker.helpers.formatSecondsToTime
+import com.kaii.trafikverkettracker.helpers.offsetIsoToSeconds
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -24,7 +26,6 @@ class TrafikVerketClient(
     private val client = OkHttpClient()
     private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)
 
-    // TODO: switch over to actual TrafikVerket API key impl
     private fun getTrainAnnouncement(trainId: String) = """
         <REQUEST>
           <LOGIN authenticationkey="$apiKey" />
@@ -97,16 +98,33 @@ class TrafikVerketClient(
             if (arrival != null) {
                 val possible = map[key]
 
+                val delay = run {
+                    val estimated =
+                        if (arrival.estimatedTimeAtLocation == null) 0L
+                        else offsetIsoToSeconds(arrival.estimatedTimeAtLocation)
+
+                    val advertised =
+                        if (arrival.advertisedTimeAtLocation == null) 0L
+                        else offsetIsoToSeconds(arrival.advertisedTimeAtLocation)
+
+                    if (estimated == 0L || advertised == 0L) {
+                        ""
+                    } else {
+                        formatSecondsToTime(estimated - advertised)
+                    }
+                }
+
                 if (possible != null) {
                     map[key] = possible.copy(
-                        arrivalTime = arrival.advertisedTimeAtLocation ?: ""
+                        arrivalTime = arrival.estimatedTimeAtLocation ?: arrival.advertisedTimeAtLocation ?: ""
                     )
                 } else {
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = arrival.locationSignature),
-                        track = arrival.trackAtLocation ?: "Unknown",
-                        arrivalTime = arrival.advertisedTimeAtLocation ?: "",
-                        departureTime = ""
+                        track = arrival.trackAtLocation ?: "",
+                        arrivalTime = arrival.estimatedTimeAtLocation ?: arrival.advertisedTimeAtLocation ?: "",
+                        departureTime = "",
+                        delay = delay
                     )
                 }
             }
@@ -114,16 +132,33 @@ class TrafikVerketClient(
             if (departure != null) {
                 val possible = map[key]
 
+                val delay = run {
+                    val estimated =
+                        if (departure.estimatedTimeAtLocation == null) 0L
+                        else offsetIsoToSeconds(departure.estimatedTimeAtLocation)
+
+                    val advertised =
+                        if (departure.advertisedTimeAtLocation == null) 0L
+                        else offsetIsoToSeconds(departure.advertisedTimeAtLocation)
+
+                    if (estimated == 0L || advertised == 0L) {
+                        ""
+                    } else {
+                        formatSecondsToTime(estimated - advertised)
+                    }
+                }
+
                 if (possible != null) {
                     map[key] = possible.copy(
-                        departureTime = departure.advertisedTimeAtLocation ?: ""
+                        departureTime = departure.estimatedTimeAtLocation ?: departure.advertisedTimeAtLocation ?: ""
                     )
                 } else {
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = departure.locationSignature),
-                        track = departure.trackAtLocation ?: "Unknown",
+                        track = departure.trackAtLocation ?: "",
                         arrivalTime = "",
-                        departureTime = departure.advertisedTimeAtLocation ?: ""
+                        departureTime = departure.estimatedTimeAtLocation ?: departure.advertisedTimeAtLocation ?: "",
+                        delay = delay
                     )
                 }
             }

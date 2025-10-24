@@ -2,6 +2,7 @@ package com.kaii.trafikverkettracker.helpers
 
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
@@ -9,7 +10,7 @@ import kotlin.time.Duration.Companion.seconds
 
 fun formatSecondsToTime(
     seconds: Long
-) : String =
+): String =
     LocalDateTime
         .ofInstant(
             java.time.Instant.ofEpochSecond(abs(seconds)),
@@ -35,4 +36,13 @@ fun formatDelay(
 
     return prefix + formatted
 }
+
+fun offsetIsoToSeconds(
+    iso: String
+) = LocalDateTime.parse(
+    iso,
+    DateTimeFormatter.ISO_OFFSET_DATE_TIME
+).toEpochSecond(
+    ZonedDateTime.now().offset
+)
 
