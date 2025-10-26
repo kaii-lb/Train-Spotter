@@ -1,6 +1,5 @@
 package com.kaii.trainspotter.helpers
 
-import com.kaii.trainspotter.api.StopGroup
 import kotlinx.serialization.Serializable
 
 interface Screens {
@@ -20,6 +19,7 @@ interface Screens {
 
     @Serializable
     data class TimeTable(
-        val stopGroup: StopGroup
+        val stopName: String,
+        val stopId: String
     ) : Screens
 }

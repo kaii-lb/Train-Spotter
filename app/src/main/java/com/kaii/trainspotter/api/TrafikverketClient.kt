@@ -80,7 +80,7 @@ class TrafikverketClient(
 
             return if (response.isSuccessful && body != "") json.decodeFromString(body)
             else null
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, e.toString())
             e.printStackTrace()
 

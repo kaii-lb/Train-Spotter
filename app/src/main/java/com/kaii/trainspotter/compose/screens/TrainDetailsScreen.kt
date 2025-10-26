@@ -72,7 +72,7 @@ fun TrainDetailsScreen(
     ) { innerPadding ->
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
-        val trafikVerketClient = remember {
+        val trafikVerketClient = remember(apiKey) {
             TrafikverketClient(
                 context = context,
                 apiKey = apiKey
@@ -80,8 +80,8 @@ fun TrainDetailsScreen(
         }
 
         val listState = rememberLazyListState()
-
         var isRefreshing by remember { mutableStateOf(true) }
+
         LaunchedEffect(Unit) {
             while (true) {
                 val new = trafikVerketClient.getRouteDataForId(trainId = trainId)

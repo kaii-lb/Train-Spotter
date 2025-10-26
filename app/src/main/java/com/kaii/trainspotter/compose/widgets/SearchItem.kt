@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,12 +19,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 
@@ -40,9 +37,9 @@ enum class SearchItemPositon {
 fun SearchItem(
     name: String,
     description: String,
-    modifier: Modifier = Modifier,
+    hasError: Boolean,
     position: SearchItemPositon,
-    errorContent: @Composable RowScope.() -> Unit = {},
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val shape = when (position) {
@@ -108,36 +105,12 @@ fun SearchItem(
             )
         }
 
-        errorContent()
+        if (hasError) {
+            Icon(
+                painter = painterResource(id = R.drawable.warning),
+                contentDescription = "Alert!",
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
     }
-}
-
-@Composable
-fun StopSearchItem(
-    stop: StopGroup,
-    position: SearchItemPositon,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    SearchItem(
-        name = stop.name,
-        description = stringResource(
-            id = R.string.search_transport_modes,
-            stop.transportModes.joinToString {
-                it.name
-            }
-        ),
-        position = position,
-        modifier = modifier,
-        errorContent = {
-            if (stop.stops.any { it.alerts.isNotEmpty() }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.warning),
-                    contentDescription = "Alert!",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        },
-        onClick = onClick
-    )
 }

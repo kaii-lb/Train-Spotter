@@ -145,7 +145,10 @@ fun TimeTableElement(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (item.canceled || item.alerts.any { it.title.lowercase().contains("inställd") }) {
+                    if (item.canceled || item.alerts.any {
+                        it.title.lowercase().contains("inställt")
+                                || it.title.lowercase().contains("inställd")
+                    }) {
                         val tooltipState = rememberTooltipState(isPersistent = true)
                         val coroutineScope = rememberCoroutineScope()
 

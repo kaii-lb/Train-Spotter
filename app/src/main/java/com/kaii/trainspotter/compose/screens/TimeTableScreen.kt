@@ -32,7 +32,6 @@ import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.ArrivalsResponse
 import com.kaii.trainspotter.api.DeparturesResponse
 import com.kaii.trainspotter.api.RealtimeClient
-import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.api.TimetableEntry
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TimeTableElement
@@ -54,7 +53,8 @@ import kotlin.time.ExperimentalTime
 @Composable
 fun TimeTableScreen(
     apiKey: String,
-    stopGroup: StopGroup,
+    stopName: String,
+    stopId: String,
     modifier: Modifier = Modifier
 ) {
     var type by remember { mutableStateOf(TimeTableType.Arrivals) }
@@ -62,7 +62,7 @@ fun TimeTableScreen(
     Scaffold(
         topBar = {
             TopBar(
-                stopName = stopGroup.name,
+                stopName = stopName,
                 type = type,
                 setType = {
                     type = it
@@ -89,9 +89,9 @@ fun TimeTableScreen(
         LaunchedEffect(type) {
             while (true) {
                 if (type == TimeTableType.Arrivals) {
-                    arrivals = realtimeClient.fetchArrivals(stopGroup.id)
+                    arrivals = realtimeClient.fetchArrivals(stopId)
                 } else {
-                    departures = realtimeClient.fetchDepartures(stopGroup.id)
+                    departures = realtimeClient.fetchDepartures(stopId)
                 }
 
                 if (previousType != type && listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
@@ -111,9 +111,9 @@ fun TimeTableScreen(
                     isRefreshing = true
 
                     if (type == TimeTableType.Arrivals) {
-                        arrivals = realtimeClient.fetchArrivals(stopGroup.id)
+                        arrivals = realtimeClient.fetchArrivals(stopId)
                     } else {
-                        departures = realtimeClient.fetchDepartures(stopGroup.id)
+                        departures = realtimeClient.fetchDepartures(stopId)
                     }
 
                     delay(ServerConstants.REFRESH_TIME)

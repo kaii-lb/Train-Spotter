@@ -1,5 +1,9 @@
 package com.kaii.trainspotter.compose.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,34 +23,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.LocationDetails
-import com.kaii.trainspotter.api.RealtimeClient
-import com.kaii.trainspotter.api.StopGroup
-import com.kaii.trainspotter.api.TrafikverketClient
+import com.kaii.trainspotter.api.rememberSearchManager
 import com.kaii.trainspotter.compose.widgets.SearchField
 import com.kaii.trainspotter.compose.widgets.SearchItem
 import com.kaii.trainspotter.compose.widgets.SearchItemPositon
 import com.kaii.trainspotter.compose.widgets.SearchMode
 import com.kaii.trainspotter.compose.widgets.SearchShimmerLoadingItem
-import com.kaii.trainspotter.compose.widgets.StopSearchItem
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
@@ -64,149 +61,110 @@ fun SearchScreen(
                 .padding(innerPadding)
                 .fillMaxWidth()
         ) {
-            var searchedText by remember { mutableStateOf("") }
-            val stopGroups = remember { mutableStateListOf<StopGroup>() }
-
-            val coroutineScope = rememberCoroutineScope()
-            val context = LocalContext.current
-            val realtimeClient = remember {
-                RealtimeClient(
-                    context = context,
-                    apiKey = apiKey.realtimeKey
-                )
-            }
-            val trafikVerketClient = remember {
-                TrafikverketClient(
-                    context = context,
-                    apiKey = apiKey.trafikVerketKey
-                )
-            }
+            val searchManager = rememberSearchManager(apiKey = apiKey)
 
             val navController = LocalNavController.current
-            var isError by remember { mutableStateOf(false) }
-            var searchMode by remember { mutableStateOf(SearchMode.Station) }
-            var foundTrain by remember { mutableStateOf<Pair<LocationDetails, LocationDetails>?>(null) }
-            var isSearching by remember { mutableStateOf(false) }
+            val resources = LocalResources.current
+            val listState = rememberLazyListState()
 
+            var searchedText by remember { mutableStateOf("") }
             SearchField(
                 text = searchedText,
-                searchMode = searchMode,
-                isError = isError,
+                searchMode = searchManager.searchMode,
+                isError = searchManager.results.isEmpty(),
                 setText = {
-                    isError = false
                     searchedText = it
                 },
                 setSearchMode = { mode ->
-                    searchMode = mode
+                    searchManager.searchMode = mode
                 },
                 onSearch = {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        if (searchedText.isBlank()) {
-                            foundTrain = null
-                            stopGroups.clear()
-
-                            return@launch
-                        }
-
-                        isSearching = true
-                        stopGroups.clear()
-                        foundTrain = null
-
-                        if (searchMode == SearchMode.Station) {
-                            val new = realtimeClient.findStopGroups(name = searchedText.trim())?.stopGroups ?: emptyList()
-
-                            isError = new.isEmpty()
-
-                            stopGroups.addAll(new - stopGroups)
-                            stopGroups.retainAll(new)
-                        } else {
-                            val new = trafikVerketClient.getRouteDataForId(trainId = searchedText)
-
-                            isError = new.isEmpty()
-
-                            if (new.isNotEmpty()) foundTrain = Pair(new.values.first(), new.values.last())
-                        }
-                        isSearching = false
+                    if (searchedText.isBlank()) {
+                        searchManager.clearResults()
+                    } else {
+                        searchManager.search(name = searchedText, resources = resources)
+                        listState.requestScrollToItem(0)
                     }
                 }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            LazyColumn {
-                if (isSearching) {
-                    items(
-                        count = 10
-                    ) { index ->
-                        SearchShimmerLoadingItem(
-                            position =
-                                if (stopGroups.size == 1) SearchItemPositon.Single
-                                else if (index == 0) SearchItemPositon.Top
-                                else if (index == stopGroups.size - 1) SearchItemPositon.Bottom
-                                else SearchItemPositon.Middle,
-                        )
-                    }
-                }
-
-
+            LazyColumn(
+                state = listState
+            ) {
                 items(
-                    count = stopGroups.size,
+                    count = searchManager.results.size + if (searchManager.isSearching) 10 else 0,
                     key = { index ->
-                        if (index in 0..stopGroups.size - 1) {
-                            stopGroups[index].id
+                        if (index in 0..searchManager.results.size - 1) {
+                            searchManager.results[index].id
                         } else {
-                            index
+                            index // fallback, shouldn't ever be here
                         }
                     }
                 ) { index ->
-                    if (index in 0..stopGroups.size - 1) {
-                        val stopGroup = stopGroups[index]
-
-                        StopSearchItem(
-                            stop = stopGroup,
-                            position =
-                                if (stopGroups.size == 1) SearchItemPositon.Single
-                                else if (index == 0) SearchItemPositon.Top
-                                else if (index == stopGroups.size - 1) SearchItemPositon.Bottom
-                                else SearchItemPositon.Middle,
-                            modifier = Modifier
-                                .animateItem()
-                        ) {
-                            navController.navigate(
-                                route = Screens.TimeTable(
-                                    stopGroup = stopGroup
-                                )
-                            )
+                    AnimatedContent(
+                        targetState = searchManager.isSearching,
+                        transitionSpec = {
+                            fadeIn().togetherWith(fadeOut())
                         }
-                    }
-                }
-
-                foundTrain?.let {
-                    item {
-                        SearchItem(
-                            name = stringResource(
-                                id = R.string.search_train_route,
-                                it.first.name,
-                                it.second.name
-                            ),
-                            description = stringResource(
-                                id = R.string.search_train_time,
-                                it.first.departureTimeFormatted,
-                                it.second.arrivalTimeFormatted
-                            ),
-                            position = SearchItemPositon.Single
-                        ) {
-                            navController.navigate(
-                                route = Screens.TrainDetails(
-                                    trainId = searchedText.trim()
-                                )
+                    ) { state ->
+                        if (state) {
+                            SearchShimmerLoadingItem(
+                                position =
+                                    when (index) {
+                                        0 -> SearchItemPositon.Top
+                                        searchManager.results.size + 9 -> SearchItemPositon.Bottom
+                                        else -> SearchItemPositon.Middle
+                                    }
                             )
+                        } else {
+                            if (index in 0..searchManager.results.size - 1) {
+                                val item = searchManager.results[index]
+
+                                if (item.mode == SearchMode.Station) {
+                                    SearchItem(
+                                        name = item.name,
+                                        description = item.description,
+                                        hasError = item.hasError,
+                                        position =
+                                            if (searchManager.results.size == 1) SearchItemPositon.Single
+                                            else if (index == 0) SearchItemPositon.Top
+                                            else if (index == searchManager.results.size - 1) SearchItemPositon.Bottom
+                                            else SearchItemPositon.Middle,
+                                        modifier = Modifier
+                                            .animateItem()
+                                    ) {
+                                        navController.navigate(
+                                            route = Screens.TimeTable(
+                                                stopName = item.name,
+                                                stopId = item.id
+                                            )
+                                        )
+                                    }
+                                } else {
+                                    SearchItem(
+                                        name = item.name,
+                                        description = item.description,
+                                        position = SearchItemPositon.Single,
+                                        hasError = item.hasError,
+                                        modifier = Modifier
+                                            .animateItem()
+                                    ) {
+                                        navController.navigate(
+                                            route = Screens.TrainDetails(
+                                                trainId = item.id
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            if (isError) {
+            if (searchManager.results.isEmpty() && !searchManager.isSearching) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -219,7 +177,7 @@ fun SearchScreen(
                     Icon(
                         painter = painterResource(
                             id =
-                                if (searchMode == SearchMode.Station) R.drawable.wrong_location
+                                if (searchManager.searchMode == SearchMode.Station) R.drawable.wrong_location
                                 else R.drawable.train_not_found
                         ),
                         contentDescription = "No such location found",

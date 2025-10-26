@@ -119,7 +119,8 @@ class MainActivity : ComponentActivity() {
 
                 TimeTableScreen(
                     apiKey = (apiKey as ApiKey.Available).realtimeKey,
-                    stopGroup = screen.stopGroup
+                    stopId = screen.stopId,
+                    stopName = screen.stopName
                 )
             }
 

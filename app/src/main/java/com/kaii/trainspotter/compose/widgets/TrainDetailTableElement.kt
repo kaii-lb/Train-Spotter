@@ -207,7 +207,12 @@ fun TrainDetailTableElement(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (item.canceled || item.deviations.any { it.code.lowercase().contains("inställd") }) {
+                    if (item.canceled
+                        || item.deviations.any {
+                            it.description.lowercase().contains("inställt")
+                                    || it.description.lowercase().contains("inställd")
+                        }
+                    ) {
                         val tooltipState = rememberTooltipState(isPersistent = true)
                         val coroutineScope = rememberCoroutineScope()
 
