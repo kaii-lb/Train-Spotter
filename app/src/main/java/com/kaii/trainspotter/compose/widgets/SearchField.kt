@@ -90,7 +90,7 @@ fun SearchField(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(text, searchMode) {
-        delay(500)
+        delay(2000)
         onSearch()
     }
 

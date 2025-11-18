@@ -51,6 +51,7 @@ class SearchManager(
     var searchMode by mutableStateOf(SearchMode.Station)
 
     fun search(name: String, resources: Resources) = coroutineScope.launch(Dispatchers.IO) {
+        clearResults()
         _isSearching.value = true
 
         if (searchMode == SearchMode.Station) {
@@ -75,38 +76,34 @@ class SearchManager(
         } else {
             val new = trafikverketClient.getRouteDataForId(trainId = name.trim()).values
 
-            if (new.isNotEmpty()) {
-                val result = SearchResult(
-                    id = name.trim(),
-                    name =
-                        resources.getString(
-                            R.string.search_train_route,
-                            new.first().name,
-                            new.last().name
-                        ),
-                    description =
-                        resources.getString(
-                            R.string.search_train_time,
-                            new.first().departureTimeFormatted,
-                            new.last().arrivalTimeFormatted
-                        ),
-                    hasError =
-                        new.any {
-                            it.canceled
-                                    || it.deviations.isNotEmpty()
-                                    || it.deviations.any { deviation ->
-                                        deviation.text.lowercase().contains("inställt")
-                                                || deviation.text.lowercase().contains("inställd")
-                                    }
-                        },
-                    mode = SearchMode.Train
-                )
+            val result = SearchResult(
+                id = name.trim(),
+                name =
+                    resources.getString(
+                        R.string.search_train_route,
+                        new.first().name,
+                        new.last().name
+                    ),
+                description =
+                    resources.getString(
+                        R.string.search_train_time,
+                        new.first().departureTimeFormatted,
+                        new.last().arrivalTimeFormatted
+                    ),
+                hasError =
+                    new.any {
+                        it.canceled
+                                || it.deviations.isNotEmpty()
+                                || it.deviations.any { deviation ->
+                                    deviation.text.lowercase().contains("inställt")
+                                            || deviation.text.lowercase().contains("inställd")
+                                }
+                    },
+                mode = SearchMode.Train
+            )
 
-                clearResults()
-                _results.add(result)
-            } else {
-                clearResults()
-            }
+            clearResults()
+            _results.add(result)
         }
 
         _isSearching.value = false

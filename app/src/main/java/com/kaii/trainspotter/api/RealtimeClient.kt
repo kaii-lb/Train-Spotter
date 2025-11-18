@@ -8,7 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.coroutines.executeAsync
 
-private const val TAG = "com.okay.trainspotter.api.RealtimeClient"
+private const val TAG = "com.kaii.trainspotter.api.RealtimeClient"
 
 class RealtimeClient(
     context: Context,

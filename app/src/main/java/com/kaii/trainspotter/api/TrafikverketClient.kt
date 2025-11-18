@@ -87,8 +87,6 @@ class TrafikverketClient(
                     </AND>
                 </FILTER>
                 <INCLUDE>ReasonCode</INCLUDE>
-                <INCLUDE>StartDateTime</INCLUDE>
-                <INCLUDE>EndDateTime</INCLUDE>
             </QUERY>
         </REQUEST>
     """.trimIndent()
@@ -224,7 +222,7 @@ class TrafikverketClient(
                 it.locationSignature!!
             }
 
-        var map = sortedMapOf<String, LocationDetails>()
+        val map = sortedMapOf<String, LocationDetails>()
 
         var totalDelay = 0L
 
@@ -282,13 +280,6 @@ class TrafikverketClient(
                         )
                     }
 
-                    val railwayEvents = getRailwayEventsForLocation(
-                        signature = arrival.locationSignature,
-                        time = arrival.advertisedTimeAtLocation
-                    )
-
-                    Log.d(TAG, "THINGY ${arrival.locationSignature} $railwayEvents")
-
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = arrival.locationSignature),
                         track = if (arrival.trackAtLocation != null && arrival.trackAtLocation != "x") arrival.trackAtLocation else "",
@@ -298,7 +289,6 @@ class TrafikverketClient(
                         estimatedDepartureTime = null,
                         delay = delay,
                         productInfo = productInfo,
-                        passed = arrival.timeAtLocation != null,
                         deviations =
                             arrival.deviations.map {
                                 Alert(
@@ -306,9 +296,11 @@ class TrafikverketClient(
                                     title = it.code,
                                     text = it.description
                                 )
-                            } + (railwayEvents ?: emptyList()),
+                            },
                         canceled = arrival.canceled == true,
-                        signature = arrival.locationSignature ?: ""
+                        signature = arrival.locationSignature ?: "",
+                        timeAtLocation = arrival.timeAtLocation,
+                        passed = arrival.timeAtLocation != null
                     )
                 }
             }
@@ -363,13 +355,6 @@ class TrafikverketClient(
                         )
                     }
 
-                    val railwayEvents = getRailwayEventsForLocation(
-                        signature = departure.locationSignature,
-                        time = departure.advertisedTimeAtLocation
-                    )
-
-                    Log.d(TAG, "THINGY ${departure.locationSignature} $railwayEvents")
-
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = departure.locationSignature),
                         track = if (departure.trackAtLocation != null && departure.trackAtLocation != "x") departure.trackAtLocation else "",
@@ -379,7 +364,6 @@ class TrafikverketClient(
                         estimatedDepartureTime = departure.timeAtLocation ?: departure.estimatedTimeAtLocation,
                         delay = delay,
                         productInfo = productInfo,
-                        passed = departure.timeAtLocation != null,
                         deviations =
                             departure.deviations.map {
                                 Alert(
@@ -387,31 +371,40 @@ class TrafikverketClient(
                                     title = it.code,
                                     text = it.description
                                 )
-                            } + (railwayEvents ?: emptyList()),
+                            },
                         canceled = departure.canceled == true,
-                        signature = departure.locationSignature ?: ""
+                        signature = departure.locationSignature ?: "",
+                        timeAtLocation = departure.timeAtLocation,
+                        passed = departure.timeAtLocation != null,
                     )
                 }
             }
         }
 
-        map = map.toSortedMap(
+        val final = map.map { (key, value) ->
+            if (value != null && value.timeAtLocation != null) {
+                val railwayEvents = getRailwayEventsForLocation(
+                    signature = value.signature,
+                    time = value.timeAtLocation
+                )
+
+                Log.d(TAG, "Railway Events ${value.signature} $railwayEvents")
+
+                key to value.copy(
+                    deviations = value.deviations + (railwayEvents ?: emptyList())
+                )
+            } else {
+                key to value
+            }
+        }.toMap()
+
+        return final.toSortedMap(
             compareBy { key ->
-                val details = map[key]!!
+                val details = final[key]!!
 
                 Instant.parse(
                     input = details.arrivalTime.ifBlank { details.departureTime }
                 ).epochSeconds
-            }
-        )
-
-        map.forEach { (key, value) ->
-            Log.d(
-                TAG, "Station $key Arrival ${value.arrivalTimeFormatted} Departure ${value.departureTimeFormatted} " +
-                        "Actual Arrival ${value.estimatedArrivalTimeFormatted} Actual Departure ${value.estimatedDepartureTimeFormatted} Delay ${value.delay}"
-            )
-        }
-
-        return map
+            })
     }
 }
