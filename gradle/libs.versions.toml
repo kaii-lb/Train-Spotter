@@ -44,6 +44,7 @@ org-jetbrains-kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotl
 
 com-squareup-okhttp3 = { group = "com.squareup.okhttp3", name  = "okhttp", version.ref = "okhttp3" }
 com-squareup-okhttp3-coroutines = { group = "com.squareup.okhttp3", name  = "okhttp-coroutines", version.ref = "okhttp3" }
+com-squareup-okhttp3-sse = { group = "com.squareup.okhttp3", name  = "okhttp-sse", version.ref = "okhttp3" }
 io-github-pushpalroy-jetlime = { group = "io.github.pushpalroy", name = "jetlime", version.ref = "jetlime" }
 
 [plugins]

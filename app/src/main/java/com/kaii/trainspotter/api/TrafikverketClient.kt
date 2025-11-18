@@ -170,10 +170,8 @@ class TrafikverketClient(
 
             val body = response.body.string()
 
-
             return if (response.isSuccessful && body != "") {
                 val all = json.decodeFromString<RailwayEventResponseHolder>(body).response.railwayResult
-                Log.d(TAG, "THINGY1 $signature $all")
 
                 all.fastMapNotNull { result ->
                     if (result.error != null || result.railwayEvents.isEmpty()) {

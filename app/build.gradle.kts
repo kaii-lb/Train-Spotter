@@ -15,8 +15,8 @@ android {
         applicationId = "com.kaii.trainspotter"
         minSdk = 30
         targetSdk = 36
-        versionCode = 110
-        versionName = "1.1.0"
+        versionCode = 120
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,11 +37,6 @@ android {
     }
     buildFeatures {
         compose = true
-    }
-    kotlinOptions {
-        compileOptions {
-            "-XXLanguage:+PropertyParamAnnotationDefaultTargetMode"
-        }
     }
 }
 
@@ -65,6 +60,7 @@ dependencies {
 
     implementation(libs.com.squareup.okhttp3)
     implementation(libs.com.squareup.okhttp3.coroutines)
+    implementation(libs.com.squareup.okhttp3.sse)
     implementation(libs.io.github.pushpalroy.jetlime)
 
     testImplementation(libs.junit)

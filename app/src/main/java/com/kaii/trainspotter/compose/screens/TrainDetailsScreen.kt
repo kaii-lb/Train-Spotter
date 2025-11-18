@@ -19,6 +19,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -31,12 +32,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.Information
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainInformation
+import com.kaii.trainspotter.api.TrainPositionClient
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
@@ -63,6 +66,7 @@ fun TrainDetailsScreen(
         topBar = {
             TopBar(
                 trainId = trainId,
+                apiKey = apiKey,
                 productInfo = announcements.values.flatMap {
                     it.productInfo
                 }.distinct()
@@ -161,10 +165,37 @@ fun TrainDetailsScreen(
 @Composable
 private fun TopBar(
     trainId: String,
+    apiKey: String,
     productInfo: List<Information>,
     modifier: Modifier = Modifier
 ) {
     val navController = LocalNavController.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val trainPositionClient = remember(trainId) {
+        TrainPositionClient(
+            context = context,
+            apiKey = apiKey
+        )
+    }
+
+    var speed by remember { mutableStateOf("") }
+    LifecycleStartEffect(trainId) {
+        coroutineScope.launch(Dispatchers.IO) {
+            trainPositionClient.getStreamingInfo(
+                trainId = trainId
+            ) { info ->
+                if (info.speed != null) {
+                    speed = " | " + info.speed.toString() + "km/h"
+                }
+            }
+        }
+
+        onStopOrDispose {
+            trainPositionClient.cancel()
+        }
+    }
 
     TopAppBar(
         navigationIcon = {
@@ -204,10 +235,14 @@ private fun TopBar(
                     }
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text =
+                val title by remember {
+                    derivedStateOf {
                         if (info != null) "${info.description} | $trainId"
-                        else "Train with ID: $trainId",
+                        else "Train: $trainId"
+                    }
+                }
+                Text(
+                    text = title + speed,
                     fontSize = TextStylingConstants.SIZE_LARGE
                 )
             }
