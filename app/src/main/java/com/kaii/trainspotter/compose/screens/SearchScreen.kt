@@ -43,6 +43,7 @@ import com.kaii.trainspotter.compose.widgets.SearchShimmerLoadingItem
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import kotlinx.coroutines.Job
 
 @Composable
 fun SearchScreen(
@@ -68,6 +69,7 @@ fun SearchScreen(
             val listState = rememberLazyListState()
 
             var searchedText by remember { mutableStateOf("") }
+            var previousJob: Job? by remember { mutableStateOf(null) }
             SearchField(
                 text = searchedText,
                 searchMode = searchManager.searchMode,
@@ -82,7 +84,8 @@ fun SearchScreen(
                     if (searchedText.isBlank()) {
                         searchManager.clearResults()
                     } else {
-                        searchManager.search(name = searchedText, resources = resources)
+                        previousJob?.cancel()
+                        previousJob = searchManager.search(name = searchedText, resources = resources)
                         listState.requestScrollToItem(0)
                     }
                 }

@@ -2,7 +2,15 @@ package com.kaii.trainspotter.api
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.ui.util.fastMapNotNull
 import com.kaii.trainspotter.R
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.format.alternativeParsing
+import kotlinx.datetime.format.char
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -10,10 +18,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.coroutines.executeAsync
 import java.util.SortedMap
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-private const val TAG = "com.okay.trainspotter.api.TrafikVerketClient"
+private const val TAG = "com.kaii.trainspotter.api.TrafikVerketClient"
 
 class TrafikverketClient(
     context: Context,
@@ -58,6 +68,31 @@ class TrafikverketClient(
         </REQUEST>
     """.trimIndent()
 
+    private fun getRailwayEvents(
+        locationSignature: String,
+        timeBefore: String,
+        timeAfter: String
+    ) = """
+        <REQUEST>
+            <LOGIN authenticationkey="$apiKey"/>
+            <QUERY namespace="ols.open" objecttype="RailwayEvent" schemaversion="1.0" limit="200" orderby="ModifiedDateTime">
+                <FILTER>
+                    <AND>
+                        <EQ name="SelectedSection.FromLocation.Signature" value="$locationSignature"/>
+
+                        <AND>
+                          <GTE name="ModifiedDateTime" value="$timeBefore" />
+                          <LT name="ModifiedDateTime" value="$timeAfter" />
+                        </AND>
+                    </AND>
+                </FILTER>
+                <INCLUDE>ReasonCode</INCLUDE>
+                <INCLUDE>StartDateTime</INCLUDE>
+                <INCLUDE>EndDateTime</INCLUDE>
+            </QUERY>
+        </REQUEST>
+    """.trimIndent()
+
     private suspend fun getTrainAnnouncementsForId(trainId: String): TrainAnnouncementResponse? {
         try {
             val request = Request.Builder()
@@ -76,10 +111,94 @@ class TrafikverketClient(
 
             val body = response.body.string()
 
-            Log.d(TAG, "BODY $body")
-
             return if (response.isSuccessful && body != "") json.decodeFromString(body)
             else null
+        } catch (e: Throwable) {
+            Log.e(TAG, e.toString())
+            e.printStackTrace()
+
+            return null
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    private suspend fun getRailwayEventsForLocation(
+        signature: String?,
+        time: String?
+    ): List<Alert>? {
+        if (signature == null || time == null) return null
+
+        try {
+            val dayOf = Instant.parse(time)
+                .plus((-5).minutes)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+                .format(
+                    LocalDateTime.Format {
+                        date(LocalDate.Format { year(); char('-'); monthNumber(); char('-'); day() })
+                        alternativeParsing({ char('t') }) { char('T') }
+                        chars("00:00:00.000Z")
+                    }
+                )
+
+            val dayAfter = Instant.parse(time).plus(1.days)
+                .plus(5.minutes)
+                .toLocalDateTime(TimeZone.currentSystemDefault())
+                .format(
+                    LocalDateTime.Format {
+                        date(LocalDate.Format { year(); char('-'); monthNumber(); char('-'); day() })
+                        alternativeParsing({ char('t') }) { char('T') }
+                        chars("00:00:00.000Z")
+                    }
+                )
+
+            val request = Request.Builder()
+                .url(endpoint)
+                .method(
+                    method = "POST",
+                    body =
+                        getRailwayEvents(
+                            locationSignature = signature,
+                            timeBefore = dayOf,
+                            timeAfter = dayAfter
+                        )
+                            .toRequestBody(
+                                contentType = "application/xml".toMediaType()
+                            )
+                )
+                .build()
+
+            val call = client.newCall(request)
+            val response = call.executeAsync()
+
+            val body = response.body.string()
+
+
+            return if (response.isSuccessful && body != "") {
+                val all = json.decodeFromString<RailwayEventResponseHolder>(body).response.railwayResult
+                Log.d(TAG, "THINGY1 $signature $all")
+
+                all.fastMapNotNull { result ->
+                    if (result.error != null || result.railwayEvents.isEmpty()) {
+                        null
+                    } else {
+                        result.railwayEvents.fastMapNotNull {
+                            val error = RailwayEventCodeMap.getError(it.reasonCode)
+
+                            if (error != null) {
+                                Alert(
+                                    type = error.code,
+                                    title = error.level3 ?: error.code,
+                                    text = error.description + error.usage?.ifBlank { "" }
+                                )
+                            } else {
+                                null
+                            }
+                        }
+                    }
+                }.flatMap { it }.distinct()
+            } else {
+                null
+            }
         } catch (e: Throwable) {
             Log.e(TAG, e.toString())
             e.printStackTrace()
@@ -159,9 +278,16 @@ class TrafikverketClient(
                         )
                     }
 
+                    val railwayEvents = getRailwayEventsForLocation(
+                        signature = arrival.locationSignature,
+                        time = arrival.advertisedTimeAtLocation
+                    )
+
+                    Log.d(TAG, "THINGY ${arrival.locationSignature} $railwayEvents")
+
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = arrival.locationSignature),
-                        track = arrival.trackAtLocation ?: "",
+                        track = if (arrival.trackAtLocation != null && arrival.trackAtLocation != "x") arrival.trackAtLocation else "",
                         arrivalTime = arrival.advertisedTimeAtLocation ?: "",
                         estimatedArrivalTime = arrival.timeAtLocation ?: arrival.estimatedTimeAtLocation,
                         departureTime = "",
@@ -169,8 +295,16 @@ class TrafikverketClient(
                         delay = delay,
                         productInfo = productInfo,
                         passed = arrival.timeAtLocation != null,
-                        deviations = arrival.deviations,
-                        canceled = arrival.canceled == true
+                        deviations =
+                            arrival.deviations.map {
+                                Alert(
+                                    type = "",
+                                    title = it.code,
+                                    text = it.description
+                                )
+                            } + (railwayEvents ?: emptyList()),
+                        canceled = arrival.canceled == true,
+                        signature = arrival.locationSignature ?: ""
                     )
                 }
             }
@@ -225,9 +359,16 @@ class TrafikverketClient(
                         )
                     }
 
+                    val railwayEvents = getRailwayEventsForLocation(
+                        signature = departure.locationSignature,
+                        time = departure.advertisedTimeAtLocation
+                    )
+
+                    Log.d(TAG, "THINGY ${departure.locationSignature} $railwayEvents")
+
                     map[key] = LocationDetails(
                         name = LocationShortCodeMap.getName(code = departure.locationSignature),
-                        track = departure.trackAtLocation ?: "",
+                        track = if (departure.trackAtLocation != null && departure.trackAtLocation != "x") departure.trackAtLocation else "",
                         arrivalTime = "",
                         estimatedArrivalTime = null,
                         departureTime = departure.advertisedTimeAtLocation ?: "",
@@ -235,8 +376,16 @@ class TrafikverketClient(
                         delay = delay,
                         productInfo = productInfo,
                         passed = departure.timeAtLocation != null,
-                        deviations = departure.deviations,
-                        canceled = departure.canceled == true
+                        deviations =
+                            departure.deviations.map {
+                                Alert(
+                                    type = "",
+                                    title = it.code,
+                                    text = it.description
+                                )
+                            } + (railwayEvents ?: emptyList()),
+                        canceled = departure.canceled == true,
+                        signature = departure.locationSignature ?: ""
                     )
                 }
             }

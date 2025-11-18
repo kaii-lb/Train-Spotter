@@ -43,7 +43,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.Alert
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.pushpal.jetlime.EventPointType
@@ -209,8 +208,8 @@ fun TrainDetailTableElement(
                 ) {
                     if (item.canceled
                         || item.deviations.any {
-                            it.description.lowercase().contains("inställt")
-                                    || it.description.lowercase().contains("inställd")
+                            it.text.lowercase().contains("inställt")
+                                    || it.text.lowercase().contains("inställd")
                         }
                     ) {
                         val tooltipState = rememberTooltipState(isPersistent = true)
@@ -255,13 +254,7 @@ fun TrainDetailTableElement(
 
                         if (showDialog) {
                             TrafikAlertDialog(
-                                alerts = item.deviations.map {
-                                    Alert(
-                                        type = "",
-                                        title = it.code,
-                                        text = it.description
-                                    )
-                                },
+                                alerts = item.deviations,
                                 onDismiss = {
                                     showDialog = false
                                 }

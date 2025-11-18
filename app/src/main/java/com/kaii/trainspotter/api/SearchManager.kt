@@ -95,8 +95,8 @@ class SearchManager(
                             it.canceled
                                     || it.deviations.isNotEmpty()
                                     || it.deviations.any { deviation ->
-                                        deviation.description.lowercase().contains("inställt")
-                                                || deviation.description.lowercase().contains("inställd")
+                                        deviation.text.lowercase().contains("inställt")
+                                                || deviation.text.lowercase().contains("inställd")
                                     }
                         },
                     mode = SearchMode.Train

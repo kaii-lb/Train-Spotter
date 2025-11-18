@@ -235,6 +235,7 @@ data class TrainAnnouncementResponse(
 @Serializable
 data class LocationDetails(
     val name: String,
+    val signature: String,
     val track: String,
     val arrivalTime: String,
     val departureTime: String,
@@ -243,7 +244,7 @@ data class LocationDetails(
     val passed: Boolean,
     val delay: String,
     val productInfo: List<Information>,
-    val deviations: List<Information>,
+    val deviations: List<Alert>,
     val canceled: Boolean
 ) {
     @OptIn(ExperimentalTime::class)

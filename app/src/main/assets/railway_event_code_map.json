@@ -1,0 +1,762 @@
+[
+  {
+    "code": "IBT01",
+    "description": "Personalbrist (hos entreprenören)"
+  },
+  {
+    "code": "IBT03",
+    "description": "Materialfel/materialbrist"
+  },
+  {
+    "code": "IBT04",
+    "description": "Maskinfel/maskinbrist"
+  },
+  {
+    "code": "IBT05",
+    "description": "Väderlek"
+  },
+  {
+    "code": "IBT06",
+    "description": "Inget behov (hos entreprenören)"
+  },
+  {
+    "code": "IBT07",
+    "description": "Tågföring (prioritering av tåg)"
+  },
+  {
+    "code": "IBT08",
+    "description": "Omprioritering (till förmån för annat arbete/felavhjälp)"
+  },
+  {
+    "code": "IBT09",
+    "description": "Ingen uppgift från tillsyningsman"
+  },
+  {
+    "code": "IBT10",
+    "description": "Telefonkö"
+  },
+  {
+    "code": "IBT11",
+    "description": "Felplanering, arbetet utfördes inte (nekades av Trafikledning)"
+  },
+  {
+    "code": "IBT12",
+    "description": "Ersatt av direktplanerat arbete"
+  },
+  {
+    "code": "IBT13",
+    "description": "Sammanslaget med annat banarbete"
+  },
+  {
+    "code": "B",
+    "description": "Banarbete överenskommet",
+    "usage": "Planerade arbeten som är fastställda i BAP"
+  },
+  {
+    "code": "E",
+    "description": "Banarbete ej överenskommet",
+    "usage": "Planerat banarbete avviker i tid eller omfattning"
+  },
+  {
+    "code": "D",
+    "description": "Driftledning",
+    "usage": "Brister hos tågledningen, felaktig ställverksmanöver"
+  },
+  {
+    "code": "I",
+    "description": "Infrastruktur",
+    "usage": "Fel/brister i infrastrukturen som medför akut inställda tåg"
+  },
+  {
+    "code": "O",
+    "description": "Olycka/Yttre tillbud och Externa händelser",
+    "usage": "Olyckor/tillbud/externa händelser, även utländsk infrastruktur"
+  },
+  {
+    "code": "W",
+    "description": "Felaktig planering",
+    "usage": "Felaktig planering under planeringsfasen där Trafikverket varit vållande"
+  },
+  {
+    "code": "F",
+    "description": "Följdorsak",
+    "usage": "Tåg blir inställt på grund av störning från annat tåg"
+  },
+  {
+    "code": "J",
+    "description": "Järnvägsföretag",
+    "usage": "JF orsakande för det inställda tåget, t.ex. lokskada"
+  },
+  {
+    "code": "DPS01",
+    "category": "Driftledning",
+    "subcategory": "Personal",
+    "level3": "Felaktig hantering/beslut",
+    "description": "Felaktig hantering eller beslut av operativ personal på VO Trafik",
+    "usage": "Alla misstag som kan ske i alla arbetsmoment som utförs av VO Trafik"
+  },
+  {
+    "code": "DPS02",
+    "category": "Driftledning",
+    "subcategory": "Personal",
+    "level3": "Personalbrist",
+    "description": "Personalbrist hos trafikledningspersonal",
+    "usage": "Då en faktisk personalbrist råder pga. sjukdom eller liknande"
+  },
+  {
+    "code": "DPS03",
+    "category": "Driftledning",
+    "subcategory": "Personal",
+    "level3": "Felaktigt lämnad trafikinformation",
+    "description": "Då felaktig/utebliven eller sen information lämnats via högtalare eller skyltar"
+  },
+  {
+    "code": "DPR03",
+    "category": "Driftledning",
+    "subcategory": "Prioritering",
+    "level3": "Driftledningen prioriterar",
+    "description": "Om tkl prioriterar ett tidigt eller sent tåg framför ett rättidigt tåg"
+  },
+  {
+    "code": "DTT",
+    "category": "Driftledning",
+    "subcategory": "Tågtidtabell",
+    "level3": "Misstänkt tidtabellsfel",
+    "description": "Misstänkt fel i körplan/planeringsmiss",
+    "usage": "Planerings körplaner som är misstänkt felaktiga"
+  },
+  {
+    "code": "DTB",
+    "category": "Driftledning",
+    "subcategory": "Tågträngsel",
+    "level3": "Bangård",
+    "description": "Tågträngsel bangård",
+    "usage": "I de fall då mottagande bangård inte kan ta emot ankommande tåg trots att det är i rätt tid"
+  },
+  {
+    "code": "DOS",
+    "category": "Driftledning",
+    "subcategory": "Operativa stödsystem",
+    "level3": "",
+    "description": "Fel på operativa stödsystem",
+    "usage": "Vid fel på våra stödsystem på trafikcentralerna, ex. ANNO, MATS m.fl."
+  },
+  {
+    "code": "DOG",
+    "category": "Driftledning",
+    "subcategory": "Ordergivning",
+    "level3": "",
+    "description": "Ordergivning på system M",
+    "usage": "Endast används på System M, ex nytillkommet/slopat möte"
+  },
+  {
+    "code": "ISA01",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Balisgrupp",
+    "description": "Balisfel - fel i infrastrukturen"
+  },
+  {
+    "code": "ISA02",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Plankorsning",
+    "description": "Felaktig vägskyddsanläggning till följd av fel i infrastrukturen"
+  },
+  {
+    "code": "ISA03",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Positioneringssystem",
+    "description": "Spårledningsfel/spårmarkering"
+  },
+  {
+    "code": "ISA04",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Signal",
+    "description": "Lampfel - funktionsfel på enstaka signaler"
+  },
+  {
+    "code": "ISA05",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Signalställverk, RBC och linjeblockeringssystem",
+    "description": "Fel på enskild plats"
+  },
+  {
+    "code": "ISA07",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Tavla",
+    "description": "Fel på tavla"
+  },
+  {
+    "code": "ISA08",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Tågledningssystem SNTL",
+    "description": "Fel på hela TLC eller flera osammanhängande platser (SNTL)"
+  },
+  {
+    "code": "ISA10",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Tågledningssystem Ebicos 900",
+    "description": "Fel på hela TLC eller flera osammanhängande platser (Ebicos 900)"
+  },
+  {
+    "code": "ISA12",
+    "category": "Infrastruktur",
+    "subcategory": "Signalanläggningar",
+    "level3": "Tågledningssystem ERTMS",
+    "description": "Fel på hela TLC eller flera osammanhängande platser (ERTMS)"
+  },
+  {
+    "code": "IBT",
+    "category": "Infrastruktur",
+    "subcategory": "Banarbete/Transport",
+    "level3": "",
+    "description": "Banarbete - planerade och avtalade skydd och färder",
+    "usage": "Vid förseningar som uppstår i samband med planerade banarbeten"
+  },
+  {
+    "code": "IBÖ01",
+    "category": "Infrastruktur",
+    "subcategory": "Banöverbyggnad",
+    "level3": "Spår",
+    "description": "Spårfel, solkurva, uppfrysning, underminering"
+  },
+  {
+    "code": "IBÖ02",
+    "category": "Infrastruktur",
+    "subcategory": "Banöverbyggnad",
+    "level3": "Spårväxelfel",
+    "description": "Växelfel, även vid fel på växelvärme"
+  },
+  {
+    "code": "IBU04",
+    "category": "Infrastruktur",
+    "subcategory": "Banunderbyggnad",
+    "level3": "Bro",
+    "description": "Brofel - alla broar och viadukter"
+  },
+  {
+    "code": "IEA01",
+    "category": "Infrastruktur",
+    "subcategory": "Elanläggningar",
+    "level3": "Kontaktledning",
+    "description": "Kontaktledningsfel"
+  },
+  {
+    "code": "IEA02",
+    "category": "Infrastruktur",
+    "subcategory": "Elanläggningar",
+    "level3": "Hjälpkraftledning",
+    "description": "Hjälpkraft utebliven/felaktig"
+  },
+  {
+    "code": "ITA01",
+    "category": "Infrastruktur",
+    "subcategory": "Teleanläggningar",
+    "level3": "Detektorer",
+    "description": "Avstängd eller felaktig detektor"
+  },
+  {
+    "code": "ITA02",
+    "category": "Infrastruktur",
+    "subcategory": "Teleanläggningar",
+    "level3": "Kabelanläggning",
+    "description": "Kabelfel på flera sammanhängande platser"
+  },
+  {
+    "code": "ITA03",
+    "category": "Infrastruktur",
+    "subcategory": "Teleanläggningar",
+    "level3": "Radioanläggning",
+    "description": "Tekniska problem med telefoni"
+  },
+  {
+    "code": "ITA05",
+    "category": "Infrastruktur",
+    "subcategory": "Teleanläggningar",
+    "level3": "Telecentral",
+    "description": "Fel på telecentral"
+  },
+  {
+    "code": "ITA07",
+    "category": "Infrastruktur",
+    "subcategory": "Teleanläggningar",
+    "level3": "Teletransmissionsanläggning",
+    "description": "Transmissionsfel på flera sammanhängande platser"
+  },
+  {
+    "code": "IFK01",
+    "category": "Infrastruktur",
+    "subcategory": "Framkomlighet",
+    "level3": "Spårhalka",
+    "description": "Spårhalka pga väder - konstaterad lövhalka"
+  },
+  {
+    "code": "JDM01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "ATC-fel",
+    "description": "ATC-fel på fordon"
+  },
+  {
+    "code": "JDM02",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "Lokbyte",
+    "description": "Lokbyte"
+  },
+  {
+    "code": "JDM03",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "Strömavtagare",
+    "description": "Fel på strömavtagare"
+  },
+  {
+    "code": "JDM04",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "Hjulskada",
+    "description": "Hjulskada, hjulplatta, varmgång, slag i hjul"
+  },
+  {
+    "code": "JDM05",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "Bromsfel",
+    "description": "Bromsfel, tjuvbroms, slangbrott"
+  },
+  {
+    "code": "JDM08",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "Maskinfel",
+    "description": "Maskinfel, tyfonfel"
+  },
+  {
+    "code": "JDM09",
+    "category": "Järnvägsföretag",
+    "subcategory": "Dragfordon/Motorvagn",
+    "level3": "Dörrfel",
+    "description": "Dörrfel på dragfordon/motorvagn"
+  },
+  {
+    "code": "JVA01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Vagn",
+    "level3": "Dörrfel",
+    "description": "Dörrfel på vagn"
+  },
+  {
+    "code": "JVA02",
+    "category": "Järnvägsföretag",
+    "subcategory": "Vagn",
+    "level3": "Bromsfel",
+    "description": "Bromsfel på vagn"
+  },
+  {
+    "code": "JVA03",
+    "category": "Järnvägsföretag",
+    "subcategory": "Vagn",
+    "level3": "Hjulskada",
+    "description": "Hjulskada på vagn"
+  },
+  {
+    "code": "JVA04",
+    "category": "Järnvägsföretag",
+    "subcategory": "Vagn",
+    "level3": "Lastförskjutning/fellastning/lastjustering",
+    "description": "Lastförskjutning, fellastning, lastjustering"
+  },
+  {
+    "code": "JVA05",
+    "category": "Järnvägsföretag",
+    "subcategory": "Vagn",
+    "level3": "Självavkoppling/Avslitet tåg",
+    "description": "Självavkoppling"
+  },
+  {
+    "code": "JFÖ01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Förarpersonal",
+    "level3": "Saknas",
+    "description": "Förare saknas eller inte finns på plats i tid"
+  },
+  {
+    "code": "JFÖ02",
+    "category": "Järnvägsföretag",
+    "subcategory": "Förarpersonal",
+    "level3": "Personalbyte",
+    "description": "Akut förarbyte"
+  },
+  {
+    "code": "JOM01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Ombordpersonal",
+    "level3": "Saknas",
+    "description": "Ombordpersonal saknas eller inte finns på plats i tid"
+  },
+  {
+    "code": "JOM02",
+    "category": "Järnvägsföretag",
+    "subcategory": "Ombordpersonal",
+    "level3": "Personalbyte",
+    "description": "Ombordpersonal byte"
+  },
+  {
+    "code": "JST01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Stationär personal",
+    "level3": "Saknas",
+    "description": "Servicepersonal saknas (t.ex. furnering)"
+  },
+  {
+    "code": "JTP",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "",
+    "description": "Terminal/plattformhantering (generell)"
+  },
+  {
+    "code": "JTP01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "Furnering",
+    "description": "Planenlig furnering drar över tiden"
+  },
+  {
+    "code": "JTP04",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "Inväntad färja",
+    "description": "Tåg försenats pga. inväntan av resenärer från färja"
+  },
+  {
+    "code": "JTP06",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "Växlingsrörelse i vägen",
+    "description": "Växlingsrörelse befinner sig i vägen för ett tåg"
+  },
+  {
+    "code": "JTP07",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "Ranger-/Växling utöver plan",
+    "description": "Planenlig vagnavkoppling då tiden inte räcker till"
+  },
+  {
+    "code": "JTP13",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "Järnvägsföretagets önskemål",
+    "description": "JF begär extra uppehåll, extra växling, nyutrustning etc."
+  },
+  {
+    "code": "JTP16",
+    "category": "Järnvägsföretag",
+    "subcategory": "Terminal/Plattformhantering",
+    "level3": "Inväntad förbindelse Buss/taxi",
+    "description": "Inväntan av buss/taxi"
+  },
+  {
+    "code": "JAS01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Avvikande sammansättning",
+    "level3": "Överskjutande lastprofil/Farligt gods",
+    "description": "Specialtransport, punktnedsättning pga överskriden lastprofil"
+  },
+  {
+    "code": "JAS02",
+    "category": "Järnvägsföretag",
+    "subcategory": "Avvikande sammansättning",
+    "level3": "Långt tåg",
+    "description": "Tåget är för långt jämfört med uppgift i Trainplan"
+  },
+  {
+    "code": "JAS03",
+    "category": "Järnvägsföretag",
+    "subcategory": "Avvikande sammansättning",
+    "level3": "För tungt tåg",
+    "description": "Tåget är för tungt jämfört med uppgift i Trainplan"
+  },
+  {
+    "code": "JAS04",
+    "category": "Järnvägsföretag",
+    "subcategory": "Avvikande sammansättning",
+    "level3": "Rapportering",
+    "description": "Tågets sammansättning inte inrapporterad i Opera"
+  },
+  {
+    "code": "JAS05",
+    "category": "Järnvägsföretag",
+    "subcategory": "Avvikande sammansättning",
+    "level3": "Loktransport",
+    "description": "Loktransport"
+  },
+  {
+    "code": "JAS06",
+    "category": "Järnvägsföretag",
+    "subcategory": "Avvikande sammansättning",
+    "level3": "Avvikande sth",
+    "description": "Tåget går med lägre sth än begärt eller angivet i Trainplan"
+  },
+  {
+    "code": "JDE",
+    "category": "Järnvägsföretag",
+    "subcategory": "Sent från depå",
+    "level3": "",
+    "description": "Utgångsförsening från vagnhall, godsbangård, lokstall"
+  },
+  {
+    "code": "JDE25",
+    "category": "Järnvägsföretag",
+    "subcategory": "Sent från depå",
+    "level3": "Sen från depå",
+    "description": "Tågpersonal saknas från depå på utgångsdriftplats"
+  },
+  {
+    "code": "JDE60",
+    "category": "Järnvägsföretag",
+    "subcategory": "Sent från depå",
+    "level3": "Annan infrastrukturförvaltare",
+    "description": "Försenat tåg ankommer från annan infrastrukturförvaltare"
+  },
+  {
+    "code": "JPR01",
+    "category": "Järnvägsföretag",
+    "subcategory": "Prioritering",
+    "level3": "Ett JF prioriterar egna tåg",
+    "description": "Ett järnvägsföretag prioriterar mellan egna tåg"
+  },
+  {
+    "code": "JPR02",
+    "category": "Järnvägsföretag",
+    "subcategory": "Prioritering",
+    "level3": "Två JF överens om prioritering",
+    "description": "Två järnvägsföretag överens om prioritering"
+  },
+  {
+    "code": "JJF",
+    "category": "Järnvägsföretag",
+    "subcategory": "Ingen uppgift",
+    "level3": "",
+    "description": "Ingen uppgift från järnvägsföretag"
+  },
+  {
+    "code": "OTÅ01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Tåg/Arbetsfordon",
+    "level3": "Urspårning/Kollision",
+    "description": "Urspårning, kollision, arbetsfordon nära spår, bil/fordon nära spår"
+  },
+  {
+    "code": "OTÅ02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Tåg/Arbetsfordon",
+    "level3": "Plankorsningsolycka",
+    "description": "Plankorsningsolycka, påkörd bom"
+  },
+  {
+    "code": "OTÅ03",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Tåg/Arbetsfordon",
+    "level3": "ATC-nödbroms",
+    "description": "Nödbroms pga balisöverensstämmelsefel"
+  },
+  {
+    "code": "OTÅ04",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Tåg/Arbetsfordon",
+    "level3": "Otillåten stoppassage",
+    "description": "Otillåten stoppassage (Ospa-A)"
+  },
+  {
+    "code": "OTÅ05",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Tåg/Arbetsfordon",
+    "level3": "Uppkörd växel",
+    "description": "Uppkörd växel"
+  },
+  {
+    "code": "OMÄ01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Människa",
+    "level3": "Påkörd/Suicidal person",
+    "description": "Påkörd person, även tillbud"
+  },
+  {
+    "code": "OMÄ02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Människa",
+    "level3": "Obehöriga i spåret",
+    "description": "Obehöriga i spåret, spontanevakuering, evenemang/festival"
+  },
+  {
+    "code": "OMÄ03",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Människa",
+    "level3": "Polis/Sjukdom",
+    "description": "Avhysning, polisingripande, sjukdomsfall ombord, nödbroms pga nödsituation"
+  },
+  {
+    "code": "OMÄ04",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Människa",
+    "level3": "Sabotage/Hot",
+    "description": "Bombhot, sabotage, vandalisering, kopparstöld, koppelåkare, nödbroms obehörigt"
+  },
+  {
+    "code": "ONA",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Naturhändelser",
+    "level3": "",
+    "description": "Naturhinder (generell)"
+  },
+  {
+    "code": "ONA01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Naturhändelser",
+    "level3": "Brand",
+    "description": "Brand intill spår, brandlarm"
+  },
+  {
+    "code": "ONA02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Naturhändelser",
+    "level3": "Översvämning",
+    "description": "Översvämning"
+  },
+  {
+    "code": "ONA03",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Naturhändelser",
+    "level3": "Storm/snöstorm",
+    "description": "Storm, snöstorm, nedfallna träd vid storm"
+  },
+  {
+    "code": "ONA04",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Naturhändelser",
+    "level3": "Lavin",
+    "description": "Lavin"
+  },
+  {
+    "code": "ONA05",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Naturhändelser",
+    "level3": "Skred",
+    "description": "Skred"
+  },
+  {
+    "code": "ODJ01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Djur",
+    "level3": "Djur (typ 1)",
+    "description": "Djur påverkar anläggningen"
+  },
+  {
+    "code": "ODJ02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Djur",
+    "level3": "Djur (typ 2)",
+    "description": "Djur påverkar anläggningen"
+  },
+  {
+    "code": "ODJ03",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Djur",
+    "level3": "Djur (typ 3)",
+    "description": "Djur påverkar anläggningen"
+  },
+  {
+    "code": "OBÖ01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Broöppning",
+    "level3": "Broöppningstid överskriden",
+    "description": "Beviljad tid för broöppning överskrids"
+  },
+  {
+    "code": "OBÖ02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Broöppning",
+    "level3": "Planerad broöppningstid",
+    "description": "Planerad broöppning"
+  },
+  {
+    "code": "ONK",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Allvarlig incident, kris och fara",
+    "level3": "",
+    "description": "Nationell kris (generell)"
+  },
+  {
+    "code": "ONK01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Allvarlig incident, kris och fara",
+    "level3": "Pandemi",
+    "description": "Pandemi/smitta"
+  },
+  {
+    "code": "ONK02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Allvarlig incident, kris och fara",
+    "level3": "Terrordåd",
+    "description": "Terrordåd"
+  },
+  {
+    "code": "OSY01",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Avsyning",
+    "level3": "Bana",
+    "description": "Avsyning av bana"
+  },
+  {
+    "code": "OSY02",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Avsyning",
+    "level3": "Fordon",
+    "description": "Avsyning av fordon"
+  },
+  {
+    "code": "OUT",
+    "category": "Olyckor/Tillbud & Yttre faktorer",
+    "subcategory": "Utland",
+    "level3": "",
+    "description": "Sent till/från utlandet"
+  },
+  {
+    "code": "FTF01",
+    "category": "Följdorsak",
+    "subcategory": "Tågföring",
+    "level3": "Möte/Korsande tågväg",
+    "description": "Möte/korsande tågväg"
+  },
+  {
+    "code": "FTF02",
+    "category": "Följdorsak",
+    "subcategory": "Tågföring",
+    "level3": "Förbigång",
+    "description": "Förbigång"
+  },
+  {
+    "code": "FTF03",
+    "category": "Följdorsak",
+    "subcategory": "Tågföring",
+    "level3": "Tåg före/spårbrist",
+    "description": "Tåg före/spårbrist"
+  },
+  {
+    "code": "FOI05",
+    "category": "Följdorsak",
+    "subcategory": "Omlopp/inväntan",
+    "level3": "Tågvändning/Omlopp/Tåglänk",
+    "description": "Tågvändning/omlopp/tåglänk"
+  }
+]

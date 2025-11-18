@@ -26,6 +26,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.kaii.trainspotter.api.Alert
 import com.kaii.trainspotter.api.LocationShortCodeMap
+import com.kaii.trainspotter.api.RailwayEventCodeMap
 import com.kaii.trainspotter.api.Stop
 import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.compose.screens.LoginScreen
@@ -68,6 +69,9 @@ class MainActivity : ComponentActivity() {
 
                 // preload short code map for performance reasons (unknown if significant)
                 LocationShortCodeMap.preloadMap(context = applicationContext)
+
+                // preload
+                RailwayEventCodeMap.preloadMap(context = applicationContext)
 
                 CompositionLocalProvider(
                     LocalNavController provides navController,
