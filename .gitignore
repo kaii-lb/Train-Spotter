@@ -32,9 +32,6 @@ keys/
 /trainspotter_signed_debug.apk
 /trainspotter_signed_release.apk
 /trainspotter_signed_release.apk.idsig
-/gradle/wrapper/gradle-wrapper.jar
-/gradlew
-/gradlew.bat
 .kotlin
 .idea/gradle.xml
 /baselineprofile/

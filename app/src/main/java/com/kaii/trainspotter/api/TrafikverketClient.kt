@@ -185,10 +185,14 @@ class TrafikverketClient(
                             val error = RailwayEventCodeMap.getError(it.reasonCode)
 
                             if (error != null) {
+                                val usage =
+                                    if (error.usage == null) ""
+                                    else " " + error.usage
+
                                 Alert(
                                     type = error.code,
                                     title = error.level3 ?: error.code,
-                                    text = error.description + error.usage?.ifBlank { "" }
+                                    text = error.description + usage
                                 )
                             } else {
                                 null
