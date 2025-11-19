@@ -74,6 +74,12 @@ class SearchManager(
         } else {
             val new = trafikverketClient.getRouteDataForId(trainId = name.trim()).values
 
+            if (new.isEmpty()) {
+                clearResults()
+                _isSearching.value = false
+                return@launch
+            }
+
             val result = SearchResult(
                 id = name.trim(),
                 name =
