@@ -1,8 +1,13 @@
 package com.kaii.trainspotter.compose.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -13,14 +18,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -43,7 +52,6 @@ import com.kaii.trainspotter.api.TrainPositionClient
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
-import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.ServerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.pushpal.jetlime.ItemsList
@@ -180,15 +188,29 @@ private fun TopBar(
         )
     }
 
-    var speed by remember { mutableStateOf("") }
+    var speed by remember { mutableIntStateOf(-1) }
+    val animatedSpeed by animateIntAsState(
+        targetValue = speed,
+        animationSpec = tween(
+            durationMillis = 800
+        )
+    )
+
+    var bearing by remember { mutableIntStateOf(-1) }
+    val animatedBearing by animateIntAsState(
+        targetValue = bearing,
+        animationSpec = tween(
+            durationMillis = 800
+        )
+    )
+
     LifecycleStartEffect(trainId) {
         coroutineScope.launch(Dispatchers.IO) {
             trainPositionClient.getStreamingInfo(
                 trainId = trainId
             ) { info ->
-                if (info.speed != null) {
-                    speed = " | " + info.speed.toString() + "km/h"
-                }
+                speed = info.speed ?: -1
+                bearing = info.bearing ?: -1
             }
         }
 
@@ -237,28 +259,49 @@ private fun TopBar(
             ) {
                 val title by remember {
                     derivedStateOf {
-                        if (info != null) "${info.description} | $trainId"
-                        else "Train: $trainId"
+                        val desc =
+                            if (info != null) "${info.description} | $trainId"
+                            else "Train: $trainId"
+
+                        if (animatedSpeed == -1) {
+                            desc
+                        } else {
+                            desc + " | " + animatedSpeed.toString() + "km/h"
+                        }
                     }
                 }
                 Text(
-                    text = title + speed,
+                    text = title,
                     fontSize = TextStylingConstants.SIZE_LARGE
                 )
             }
         },
         actions = {
-            IconButton(
-                onClick = {
-                    navController.navigate(
-                        route = Screens.Settings
+            AnimatedVisibility(
+                visible = animatedBearing != -1,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.compass),
+                        tint = TopAppBarDefaults.topAppBarColors().titleContentColor,
+                        contentDescription = "Start settings",
+                        modifier = Modifier
+                            .rotate(animatedBearing.toFloat())
+                    )
+
+                    Icon(
+                        painter = painterResource(id = R.drawable.needle_tip),
+                        tint = MaterialTheme.colorScheme.primary,
+                        contentDescription = "Start settings",
+                        modifier = Modifier
+                            .rotate(animatedBearing.toFloat())
                     )
                 }
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.settings),
-                    contentDescription = "Start settings"
-                )
             }
         },
         modifier = modifier

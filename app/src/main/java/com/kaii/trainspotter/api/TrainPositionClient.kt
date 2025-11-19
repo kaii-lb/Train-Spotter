@@ -3,6 +3,10 @@ package com.kaii.trainspotter.api
 import android.content.Context
 import android.util.Log
 import com.kaii.trainspotter.R
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -12,6 +16,9 @@ import okhttp3.coroutines.executeAsync
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import java.util.concurrent.TimeUnit
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 private const val TAG = "com.kaii.trainspotter.api.TrainPositionClient"
 
@@ -20,7 +27,13 @@ class TrainPositionClient(
     private val apiKey: String
 ) {
     private val json = Json { ignoreUnknownKeys = true }
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.MINUTES)
+        .readTimeout(10, TimeUnit.MINUTES)
+        .callTimeout(10, TimeUnit.MINUTES)
+        .webSocketCloseTimeout(10, TimeUnit.MINUTES)
+        .build()
+
     private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)
 
     private lateinit var source: EventSource
@@ -37,22 +50,23 @@ class TrainPositionClient(
                 <INCLUDE>Speed</INCLUDE>
                 <INCLUDE>Status</INCLUDE>
                 <INCLUDE>Bearing</INCLUDE>
+                <INCLUDE>TimeStamp</INCLUDE>
             </QUERY>
         </REQUEST>
     """.trimIndent()
 
     private suspend fun getInitialInfo(
         trainId: String
-    ) : TrainPositionResult? {
+    ): TrainPositionResult? {
         val request = Request.Builder()
             .url(endpoint)
             .method(
                 method = "POST",
                 body =
                     getTrainPosition(trainId = trainId)
-                    .toRequestBody(
-                        contentType = "application/xml".toMediaType()
-                    )
+                        .toRequestBody(
+                            contentType = "application/xml".toMediaType()
+                        )
             )
             .build()
 
@@ -64,6 +78,7 @@ class TrainPositionClient(
         return json.decodeFromString<TrainPositionResponseHolder>(body).response.result.first()
     }
 
+    @OptIn(ExperimentalTime::class)
     suspend fun getStreamingInfo(
         trainId: String,
         onInfoChange: (trainPosition: TrainPosition) -> Unit,
@@ -83,11 +98,24 @@ class TrainPositionClient(
 
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                 Log.e(TAG, "SSE data for train id $trainId is $type with $data")
-                onInfoChange(json.decodeFromString<TrainPositionResponseHolder>(data).response.result.first().trainPosition.first())
+                val data = json.decodeFromString<TrainPositionResponseHolder>(data).response.result.first().trainPosition
+                val date =
+                    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                        .date
+                        .format(LocalDate.Formats.ISO)
+
+                onInfoChange(
+                    data.first {
+                        it.timeStamp?.startsWith(date) ?: false
+                    }
+                )
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
-                Log.e(TAG, "SSE connection for train id $trainId failed")
+                Log.e(TAG, "SSE connection for train id $trainId failed: ${t?.message}")
+                t?.printStackTrace()
+
+                onInfoChange(TrainPosition())
             }
 
             override fun onClosed(eventSource: EventSource) {
