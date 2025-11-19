@@ -48,6 +48,8 @@ class TrainPositionClient(
     private var previousCoords = WGS84Coordinates(0.0, 0.0, 0)
     private var previousSpeeds = mutableListOf(-1)
 
+    private var _currentTrainId = ""
+
     private fun getTrainPosition(
         trainId: String
     ) = """
@@ -98,6 +100,8 @@ class TrainPositionClient(
 
         if (initial == null) return
 
+        _currentTrainId = trainId
+
         val request = Request.Builder()
             .url(initial.info!!.sseUrl!!)
             .build()
@@ -127,6 +131,8 @@ class TrainPositionClient(
                 if (t?.message != "canceled") {
                     t?.printStackTrace()
                 }
+
+                _currentTrainId = ""
             }
 
             override fun onClosed(eventSource: EventSource) {
@@ -181,5 +187,9 @@ class TrainPositionClient(
 
             average
         }
+    }
+
+    fun getCurrentTrainId(): String {
+        return _currentTrainId
     }
 }

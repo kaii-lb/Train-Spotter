@@ -27,11 +27,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.kaii.trainspotter.api.Alert
+import com.kaii.trainspotter.api.Information
 import com.kaii.trainspotter.api.LocationShortCodeMap
 import com.kaii.trainspotter.api.RailwayEventCodeMap
 import com.kaii.trainspotter.api.Stop
 import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.compose.screens.LoginScreen
+import com.kaii.trainspotter.compose.screens.MapScreen
 import com.kaii.trainspotter.compose.screens.SearchScreen
 import com.kaii.trainspotter.compose.screens.Settings
 import com.kaii.trainspotter.compose.screens.TimeTableScreen
@@ -41,6 +43,7 @@ import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.models.main.MainViewModel
 import com.kaii.trainspotter.models.main.MainViewModelFactory
 import com.kaii.trainspotter.ui.theme.TrainSpotterTheme
+import org.maplibre.android.MapLibre
 import kotlin.reflect.typeOf
 
 val LocalNavController = compositionLocalOf<NavHostController> {
@@ -53,7 +56,11 @@ val LocalMainViewModel = compositionLocalOf<MainViewModel> {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        MapLibre.getInstance(applicationContext)
+
         enableEdgeToEdge()
+
         setContent {
             TrainSpotterTheme {
                 val navController = rememberNavController()
@@ -153,9 +160,23 @@ class MainActivity : ComponentActivity() {
 
             composable<Screens.TrainDetails> {
                 val screen = it.toRoute<Screens.TrainDetails>()
+
                 TrainDetailsScreen(
                     apiKey = (apiKey as ApiKey.Available).trafikVerketKey,
                     trainId = screen.trainId
+                )
+            }
+
+            composable<Screens.Map>(
+                typeMap = mapOf(
+                    typeOf<List<Information>>() to Screens.Map.ProductInfoNavType
+                )
+            ) {
+                val screen = it.toRoute<Screens.Map>()
+
+                MapScreen(
+                    trainId = screen.trainId,
+                    productInfo = screen.productInfo
                 )
             }
         }

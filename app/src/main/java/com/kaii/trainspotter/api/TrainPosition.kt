@@ -101,8 +101,8 @@ data class TrainPositionInfo(
 
             return if (split != null && split.size == 2) {
                 WGS84Coordinates(
-                    latitude = split.first().toDouble(),
-                    longitude = split[1].toDouble(),
+                    latitude = split[1].toDouble(),
+                    longitude = split[0].toDouble(),
                     timestamp = Instant.parse(timestamp).epochSeconds
                 )
             } else {

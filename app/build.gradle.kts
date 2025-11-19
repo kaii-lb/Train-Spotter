@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.com.squareup.okhttp3.coroutines)
     implementation(libs.com.squareup.okhttp3.sse)
     implementation(libs.io.github.pushpalroy.jetlime)
+    implementation(libs.org.maplibre.compose)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
