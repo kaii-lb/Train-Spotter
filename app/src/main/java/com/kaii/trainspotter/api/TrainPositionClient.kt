@@ -17,6 +17,12 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import java.util.concurrent.TimeUnit
+import kotlin.math.PI
+import kotlin.math.asin
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -37,6 +43,10 @@ class TrainPositionClient(
     private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)
 
     private lateinit var source: EventSource
+    private val earthRadius = 6371.2 // kilometers
+
+    private var previousCoords = WGS84Coordinates(0.0, 0.0, 0)
+    private var previousSpeeds = mutableListOf(-1)
 
     private fun getTrainPosition(
         trainId: String
@@ -51,6 +61,7 @@ class TrainPositionClient(
                 <INCLUDE>Status</INCLUDE>
                 <INCLUDE>Bearing</INCLUDE>
                 <INCLUDE>TimeStamp</INCLUDE>
+                <INCLUDE>Position</INCLUDE>
             </QUERY>
         </REQUEST>
     """.trimIndent()
@@ -97,7 +108,6 @@ class TrainPositionClient(
             }
 
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                Log.e(TAG, "SSE data for train id $trainId is $type with $data")
                 val data = json.decodeFromString<TrainPositionResponseHolder>(data).response.result.first().trainPosition
                 val date =
                     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -113,7 +123,10 @@ class TrainPositionClient(
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
                 Log.e(TAG, "SSE connection for train id $trainId failed: ${t?.message}")
-                t?.printStackTrace()
+
+                if (t?.message != "canceled") {
+                    t?.printStackTrace()
+                }
 
                 onInfoChange(TrainPosition())
             }
@@ -129,5 +142,46 @@ class TrainPositionClient(
 
     fun cancel() {
         source.cancel()
+    }
+
+    fun calcSpeed(
+        coords: WGS84Coordinates
+    ): Int {
+        val phi1 = previousCoords.latitude * (PI / 180f)
+        val lambda1 = previousCoords.longitude * (PI / 180f)
+
+        val phi2 = coords.latitude * (PI / 180f)
+        val lambda2 = coords.longitude * (PI / 180f)
+
+        val dPhi = phi2 - phi1
+        val dLambda = lambda2 - lambda1
+
+        val sinDPhi = sin(dPhi / 2)
+        val sinDLambda = sin(dLambda / 2)
+
+        val havDPhi = sinDPhi * sinDPhi
+        val havDLambda = sinDLambda * sinDLambda
+
+        val havTheta = havDPhi + cos(phi1) * cos(phi2) * havDLambda
+
+        val thetaRads = 2.0 * asin(sqrt(havTheta))
+
+        val distance = thetaRads * earthRadius // kilometers
+
+        val deltaTime = (coords.timestamp - previousCoords.timestamp) / 3600f // hours
+
+        val speed = floor(distance / deltaTime).toInt()
+        previousCoords = coords
+
+        return if (deltaTime <= 0.0000277778 || speed > 400 || distance < 0.1) {
+            previousSpeeds.last()
+        } else {
+            previousSpeeds.add(speed)
+            val average = floor(previousSpeeds.sum().toFloat() / previousSpeeds.size).toInt()
+
+            if (previousSpeeds.size > 4) previousSpeeds.removeAt(0)
+
+            average
+        }
     }
 }

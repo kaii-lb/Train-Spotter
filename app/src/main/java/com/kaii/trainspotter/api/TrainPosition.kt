@@ -2,6 +2,8 @@ package com.kaii.trainspotter.api
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @Serializable
 data class TrainPositionResponseHolder(
@@ -79,14 +81,35 @@ data class TrainPositionTrainInfo(
 )
 
 @Serializable
+data class WGS84Coordinates(
+    val latitude: Double,
+    val longitude: Double,
+    val timestamp: Long
+)
+
+@Serializable
 data class TrainPositionInfo(
     @SerialName("SWEREF99TM")
-    val swereF99tm: String? = null,
+    val sweref99tm: String? = null,
 
-    // Coordinates in WGS84 format (WKT string)
     @SerialName("WGS84")
     val wgs84: String? = null
-)
+) {
+        @OptIn(ExperimentalTime::class)
+        fun toCoords(timestamp: String): WGS84Coordinates? {
+            val split = wgs84?.removePrefix("POINT (")?.removeSuffix(")")?.split(" ")
+
+            return if (split != null && split.size == 2) {
+                WGS84Coordinates(
+                    latitude = split.first().toDouble(),
+                    longitude = split[1].toDouble(),
+                    timestamp = Instant.parse(timestamp).epochSeconds
+                )
+            } else {
+                null
+            }
+        }
+}
 
 @Serializable
 data class Status(

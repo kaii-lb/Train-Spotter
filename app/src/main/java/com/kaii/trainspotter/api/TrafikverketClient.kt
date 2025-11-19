@@ -386,8 +386,6 @@ class TrafikverketClient(
                     time = value.timeAtLocation
                 )
 
-                Log.d(TAG, "Railway Events ${value.signature} $railwayEvents")
-
                 key to value.copy(
                     deviations = value.deviations + (railwayEvents ?: emptyList())
                 )

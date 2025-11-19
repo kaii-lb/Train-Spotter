@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -188,7 +189,7 @@ private fun TopBar(
         )
     }
 
-    var speed by remember { mutableIntStateOf(-1) }
+    var speed by rememberSaveable { mutableIntStateOf(-1) }
     val animatedSpeed by animateIntAsState(
         targetValue = speed,
         animationSpec = tween(
@@ -196,7 +197,7 @@ private fun TopBar(
         )
     )
 
-    var bearing by remember { mutableIntStateOf(-1) }
+    var bearing by rememberSaveable { mutableIntStateOf(-1) }
     val animatedBearing by animateIntAsState(
         targetValue = bearing,
         animationSpec = tween(
@@ -204,12 +205,28 @@ private fun TopBar(
         )
     )
 
+    var speedIsEstimate by remember { mutableStateOf(false) }
+
     LifecycleStartEffect(trainId) {
         coroutineScope.launch(Dispatchers.IO) {
             trainPositionClient.getStreamingInfo(
                 trainId = trainId
             ) { info ->
-                speed = info.speed ?: -1
+                speed = if (info.speed == null && info.position != null && info.timeStamp != null) {
+                    speedIsEstimate = true
+
+                    info.position.toCoords(info.timeStamp)?.let { current ->
+                        val new = trainPositionClient.calcSpeed(
+                            coords = current
+                        )
+
+                        new
+                    } ?: 0
+                } else {
+                    speedIsEstimate = false
+                    info.speed ?: -1
+                }
+
                 bearing = info.bearing ?: -1
             }
         }
@@ -266,10 +283,11 @@ private fun TopBar(
                         if (animatedSpeed == -1) {
                             desc
                         } else {
-                            desc + " | " + animatedSpeed.toString() + "km/h"
+                            desc + " | " + animatedSpeed.toString() + "km/h" + if (speedIsEstimate) "*" else ""
                         }
                     }
                 }
+
                 Text(
                     text = title,
                     fontSize = TextStylingConstants.SIZE_LARGE
