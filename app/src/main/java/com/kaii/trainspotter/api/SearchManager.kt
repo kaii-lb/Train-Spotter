@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.compose.widgets.SearchMode
@@ -48,9 +47,8 @@ class SearchManager(
 
     val isSearching by derivedStateOf { _isSearching.value }
     val results by derivedStateOf { _results.toList() }
-    var searchMode by mutableStateOf(SearchMode.Station)
 
-    fun search(name: String, resources: Resources) = coroutineScope.launch(Dispatchers.IO) {
+    fun search(name: String, searchMode: SearchMode, resources: Resources) = coroutineScope.launch(Dispatchers.IO) {
         clearResults()
         _isSearching.value = true
 

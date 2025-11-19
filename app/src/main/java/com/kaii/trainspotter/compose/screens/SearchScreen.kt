@@ -32,6 +32,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kaii.trainspotter.LocalMainViewModel
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.rememberSearchManager
@@ -63,26 +65,33 @@ fun SearchScreen(
         ) {
             val searchManager = rememberSearchManager(apiKey = apiKey)
 
+            val mainViewModel = LocalMainViewModel.current
             val navController = LocalNavController.current
             val resources = LocalResources.current
             val listState = rememberLazyListState()
 
             var searchedText by remember { mutableStateOf("") }
+            val searchMode by mainViewModel.searchMode.collectAsStateWithLifecycle()
+
             SearchField(
                 text = searchedText,
-                searchMode = searchManager.searchMode,
+                searchMode = searchMode,
                 isError = searchManager.results.isEmpty(),
                 setText = {
                     searchedText = it
                 },
                 setSearchMode = { mode ->
-                    searchManager.searchMode = mode
+                    mainViewModel.searchMode.value = mode
                 },
                 onSearch = {
                     if (searchedText.isBlank()) {
                         searchManager.clearResults()
                     } else {
-                        searchManager.search(name = searchedText, resources = resources)
+                        searchManager.search(
+                            name = searchedText,
+                            searchMode = searchMode,
+                            resources = resources
+                        )
                         listState.requestScrollToItem(0)
                     }
                 }
@@ -177,7 +186,7 @@ fun SearchScreen(
                     Icon(
                         painter = painterResource(
                             id =
-                                if (searchManager.searchMode == SearchMode.Station) R.drawable.wrong_location
+                                if (searchMode == SearchMode.Station) R.drawable.wrong_location
                                 else R.drawable.train_not_found
                         ),
                         contentDescription = "No such location found",
