@@ -43,13 +43,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
+import com.kaii.trainspotter.LocalMainViewModel
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.Information
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainInformation
-import com.kaii.trainspotter.api.TrainPositionClient
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
@@ -179,15 +179,8 @@ private fun TopBar(
     modifier: Modifier = Modifier
 ) {
     val navController = LocalNavController.current
-    val context = LocalContext.current
+    val mainViewModel = LocalMainViewModel.current
     val coroutineScope = rememberCoroutineScope()
-
-    val trainPositionClient = remember(trainId) {
-        TrainPositionClient(
-            context = context,
-            apiKey = apiKey
-        )
-    }
 
     var speed by rememberSaveable { mutableIntStateOf(-1) }
     val animatedSpeed by animateIntAsState(
@@ -209,14 +202,14 @@ private fun TopBar(
 
     LifecycleStartEffect(trainId) {
         coroutineScope.launch(Dispatchers.IO) {
-            trainPositionClient.getStreamingInfo(
+            mainViewModel.trainPositionClient.getStreamingInfo(
                 trainId = trainId
             ) { info ->
                 speed = if (info.speed == null && info.position != null && info.timeStamp != null) {
                     speedIsEstimate = true
 
                     info.position.toCoords(info.timeStamp)?.let { current ->
-                        val new = trainPositionClient.calcSpeed(
+                        val new = mainViewModel.trainPositionClient.calcSpeed(
                             coords = current
                         )
 
@@ -232,7 +225,7 @@ private fun TopBar(
         }
 
         onStopOrDispose {
-            trainPositionClient.cancel()
+            mainViewModel.trainPositionClient.cancel()
         }
     }
 

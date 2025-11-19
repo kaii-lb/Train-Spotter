@@ -127,8 +127,6 @@ class TrainPositionClient(
                 if (t?.message != "canceled") {
                     t?.printStackTrace()
                 }
-
-                onInfoChange(TrainPosition())
             }
 
             override fun onClosed(eventSource: EventSource) {

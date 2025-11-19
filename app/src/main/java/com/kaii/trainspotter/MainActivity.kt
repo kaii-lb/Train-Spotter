@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -65,6 +67,17 @@ class MainActivity : ComponentActivity() {
                     inputs = arrayOf(apiKey)
                 ) {
                     apiKey
+                }
+
+                val context = LocalContext.current
+                LaunchedEffect(apiKey) {
+                    if (apiKey is ApiKey.Available) {
+
+                        mainViewModel.init(
+                            context = context,
+                            apiKey = apiKey as ApiKey.Available
+                        )
+                    }
                 }
 
                 // preload short code map for performance reasons (unknown if significant)
