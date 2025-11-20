@@ -42,7 +42,7 @@ class TrainPositionClient(
 
     private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)
 
-    private lateinit var source: EventSource
+    private var source: EventSource? = null
     private val earthRadius = 6371.2 // kilometers
 
     private var previousCoords = WGS84Coordinates(0.0, 0.0, 0)
@@ -94,7 +94,7 @@ class TrainPositionClient(
     @OptIn(ExperimentalTime::class)
     suspend fun getStreamingInfo(
         trainId: String,
-        onInfoChange: (trainPosition: TrainPosition) -> Unit,
+        onInfoChange: (trainPosition: TrainPositionMini) -> Unit,
     ) {
         val initial = getInitialInfo(trainId)
 
@@ -106,6 +106,17 @@ class TrainPositionClient(
             .url(initial.info!!.sseUrl!!)
             .build()
 
+        val date =
+            Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                .date
+                .format(LocalDate.Formats.ISO)
+
+        onInfoChange(getMiniInfo(
+            info = initial.trainPosition.first {
+                it.timeStamp?.startsWith(date) ?: false
+            }
+        ))
+
         val listener = object : EventSourceListener() {
             override fun onOpen(eventSource: EventSource, response: okhttp3.Response) {
                 Log.e(TAG, "SSE connection for train id $trainId initialized")
@@ -113,15 +124,13 @@ class TrainPositionClient(
 
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                 val data = json.decodeFromString<TrainPositionResponseHolder>(data).response.result.first().trainPosition
-                val date =
-                    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                        .date
-                        .format(LocalDate.Formats.ISO)
 
                 onInfoChange(
-                    data.first {
-                        it.timeStamp?.startsWith(date) ?: false
-                    }
+                    getMiniInfo(
+                        info = data.first {
+                            it.timeStamp?.startsWith(date) ?: false
+                        }
+                    )
                 )
             }
 
@@ -145,7 +154,7 @@ class TrainPositionClient(
     }
 
     fun cancel() {
-        source.cancel()
+        source?.cancel()
     }
 
     fun calcSpeed(
@@ -191,5 +200,35 @@ class TrainPositionClient(
 
     fun getCurrentTrainId(): String {
         return _currentTrainId
+    }
+
+    fun getMiniInfo(info: TrainPosition): TrainPositionMini {
+        val speedIsEstimate: Boolean
+        val speed = if (info.speed == null && info.position != null && info.timeStamp != null) {
+            speedIsEstimate = true
+
+            info.position.toCoords(info.timeStamp)?.let { current ->
+                val new = calcSpeed(coords = current)
+
+                new
+            } ?: 0
+        } else {
+            speedIsEstimate = false
+            info.speed ?: -1
+        }
+
+        var coords: WGS84Coordinates? = null
+        if (info.position != null && info.timeStamp != null) {
+            info.position.toCoords(info.timeStamp)?.let { current ->
+                coords = current
+            }
+        }
+
+        return TrainPositionMini(
+            speed = speed,
+            speedIsEstimate = speedIsEstimate,
+            bearing = info.bearing ?: -1,
+            coords = coords
+        )
     }
 }

@@ -140,3 +140,11 @@ data class InfoDetails(
     @SerialName("SSEURL")
     val sseUrl: String? = null
 )
+
+@Serializable
+data class TrainPositionMini(
+    val speed: Int,
+    val speedIsEstimate: Boolean,
+    val bearing: Int,
+    val coords: WGS84Coordinates?
+)
