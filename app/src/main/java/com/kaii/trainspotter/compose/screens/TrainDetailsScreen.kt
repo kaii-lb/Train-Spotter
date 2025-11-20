@@ -49,10 +49,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +80,7 @@ import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.compose.widgets.shimmerEffect
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
+import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.ServerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.tintDrawable
@@ -255,61 +264,6 @@ fun TrainDetailsScreen(
                 targetValue = with(density) { mapHeight.toDp() }
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize()
-                    .height(animatedMapHeight)
-                    .padding(16.dp)
-                    .onGloballyPositioned {
-                        mapWidth = it.size.width
-                    }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_LARGE))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                ) {
-                    AndroidView(
-                        factory = { context ->
-                            MapView(context).apply {
-                                onCreate(null)
-                                getMapAsync { mapLibreMap ->
-                                    mapLibreMap.setStyle(MapStyleUrl)
-                                    map = mapLibreMap
-                                }
-                            }
-                        },
-                        onRelease = {
-                            it.onDestroy()
-                        }
-                    )
-
-                    var showingShimmer by remember { mutableStateOf(true) }
-                    LaunchedEffect(mapHeight) {
-                        if (mapHeight > 0) showingShimmer = true
-
-                        delay(1000)
-                        showingShimmer = false
-                    }
-
-                    AnimatedVisibility(
-                        visible = showingShimmer,
-                        enter = fadeIn(animationSpec = tween(durationMillis = 0)),
-                        exit = fadeOut()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .shimmerEffect(
-                                    durationMillis = 800
-                                )
-                        )
-                    }
-                }
-            }
-
             JetLimeColumn(
                 listState = listState,
                 itemsList = ItemsList(
@@ -340,6 +294,107 @@ fun TrainDetailsScreen(
                         TrainDetailTableElement(
                             item = announcements[item]!!,
                             position = position
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }
+                    .drawWithContent {
+                        drawContent()
+
+                        drawRoundRect(
+                            color = Color.White,
+                            topLeft = with(density) {
+                                Offset(
+                                    x = 16.dp.toPx(),
+                                    y = animatedMapHeight.toPx()
+                                )
+                            },
+                            size = with(density) {
+                                 Size(
+                                     width = size.width - 32.dp.toPx(),
+                                     height = size.height + 32.dp.toPx() // make it taller so the bottom isn't rounded
+                                 )
+                            },
+                            cornerRadius = with(density) {
+                                CornerRadius(16.dp.toPx(), 16.dp.toPx())
+                            },
+                            blendMode = BlendMode.DstOut,
+                        )
+                    }
+                    .background(MaterialTheme.colorScheme.background)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize()
+                    .height(animatedMapHeight)
+                    .padding(16.dp)
+                    .onGloballyPositioned {
+                        mapWidth = it.size.width
+                    }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_LARGE))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                ) {
+                    AndroidView(
+                        factory = { context ->
+                            MapView(context).apply {
+                                onCreate(null)
+                                getMapAsync { mapLibreMap ->
+                                    mapLibreMap.setStyle(MapStyleUrl)
+                                    map = mapLibreMap
+
+                                    mapLibreMap.addOnMapClickListener {
+                                        mainViewModel.trainPositionClient.cancel()
+                                        navController.navigate(
+                                            Screens.Map(
+                                                trainId = trainId,
+                                                productInfo = announcements.values.flatMap {
+                                                    it.productInfo
+                                                }.distinct()
+                                            )
+                                        )
+                                        false
+                                    }
+                                }
+                            }
+                        },
+                        onRelease = {
+                            it.onDestroy()
+                        }
+                    )
+
+                    var showingShimmer by remember { mutableStateOf(true) }
+                    LaunchedEffect(mapHeight) {
+                        if (mapHeight > 0) showingShimmer = true
+
+                        delay(1000)
+                        showingShimmer = false
+                    }
+
+                    AnimatedVisibility(
+                        visible = showingShimmer,
+                        enter = fadeIn(animationSpec = tween(durationMillis = 0)),
+                        exit = fadeOut()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .shimmerEffect(
+                                    durationMillis = 800
+                                )
                         )
                     }
                 }
