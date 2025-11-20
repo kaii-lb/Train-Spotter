@@ -3,9 +3,14 @@ package com.kaii.trainspotter.api
 import android.net.Uri
 import android.os.Bundle
 import androidx.navigation.NavType
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.format
+import kotlinx.datetime.offsetAt
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -164,7 +169,8 @@ data class TimetableEntry(
     @OptIn(ExperimentalTime::class)
     val time: Long
         get() {
-            val needed = realtime.ifBlank { scheduled } + "+02:00"
+            val timeZone = TimeZone.currentSystemDefault().offsetAt(Clock.System.now()).format(UtcOffset.Formats.ISO)
+            val needed = realtime.ifBlank { scheduled } + timeZone
 
             return Instant.parse(
                 input = needed
