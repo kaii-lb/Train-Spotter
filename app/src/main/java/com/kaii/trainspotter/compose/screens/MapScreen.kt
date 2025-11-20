@@ -51,6 +51,7 @@ import com.kaii.trainspotter.api.TrainInformation
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.tintDrawable
+import com.kaii.trainspotter.ui.theme.MapStyleUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,7 +62,6 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
-import org.maplibre.android.maps.Style
 
 @Composable
 fun MapScreen(
@@ -73,29 +73,6 @@ fun MapScreen(
     BackHandler {
         mainViewModel.trainPositionClient.cancel()
     }
-
-    val mapStyle = """
-    {
-      "version": 8,
-      "sources": {
-        "osm": {
-          "type": "raster",
-          "tiles": ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-          "tileSize": 256,
-          "attribution": "&copy; OpenStreetMap Contributors"
-        }
-      },
-      "layers": [
-        {
-          "id": "simple-tiles",
-          "type": "raster",
-          "source": "osm",
-          "minzoom": 0,
-          "maxzoom": 22
-        }
-      ]
-    }
-    """.trimIndent()
 
     var speedIsEstimate by remember { mutableStateOf(false) }
     var speed by rememberSaveable { mutableIntStateOf(-1) }
@@ -186,12 +163,9 @@ fun MapScreen(
                 factory = { context ->
                     MapView(context).apply {
                         onCreate(null)
-                        getMapAsync {
-                            it.setStyle(
-                                Style.Builder()
-                                    .fromJson(mapStyle)
-                            )
-                            map = it
+                        getMapAsync { mapLibreMap ->
+                            mapLibreMap.setStyle(MapStyleUrl)
+                            map = mapLibreMap
                         }
                     }
                 },
