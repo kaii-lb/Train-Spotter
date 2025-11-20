@@ -203,6 +203,16 @@ fun TrainDetailsScreen(
         val listState = rememberLazyListState()
         var isRefreshing by remember { mutableStateOf(true) }
 
+        LaunchedEffect(announcements.isNotEmpty()) {
+            if (announcements.isNotEmpty()) {
+                announcements.values.maxByOrNull { it.timeAtLocation ?: "" }?.let { passed ->
+                    listState.animateScrollToItem(
+                        index = announcements.values.indexOf(passed)
+                    )
+                }
+            }
+        }
+
         LaunchedEffect(Unit) {
             while (true) {
                 val new = trafikVerketClient.getRouteDataForId(trainId = trainId)
@@ -467,7 +477,6 @@ private fun TopBar(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.map),
-                    tint = TopAppBarDefaults.topAppBarColors().titleContentColor,
                     contentDescription = "Start settings"
                 )
             }
