@@ -35,6 +35,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.datastore.ApiKey
@@ -59,6 +62,7 @@ fun PreferenceRow(
     modifier: Modifier = Modifier,
     containerColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    fontSize: TextUnit = TextStylingConstants.SIZE_MEDIUM,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Row(
@@ -81,15 +85,15 @@ fun PreferenceRow(
 
         Spacer(modifier = Modifier.width(width = 16.dp))
 
-        Column {
+        Column(
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = title,
-                fontSize = TextStylingConstants.SIZE_MEDIUM,
+                fontSize = fontSize,
                 fontWeight = FontWeight.Bold,
                 color = contentColor
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             content()
         }
@@ -113,10 +117,14 @@ fun ApiKeyPreferenceRow(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         modifier = modifier
     ) {
-        var placeholderKey by remember(initialKey) { mutableStateOf(
-            if (isRealtimeKey) (initialKey as? ApiKey.Available)?.realtimeKey ?: ""
-            else (initialKey as? ApiKey.Available)?.trafikVerketKey ?: ""
-        ) }
+        var placeholderKey by remember(initialKey) {
+            mutableStateOf(
+                if (isRealtimeKey) (initialKey as? ApiKey.Available)?.realtimeKey ?: ""
+                else (initialKey as? ApiKey.Available)?.trafikVerketKey ?: ""
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row {
             TextField(
@@ -172,5 +180,34 @@ fun ApiKeyPreferenceRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun TextPreferencesRow(
+    title: String,
+    text: String,
+    @DrawableRes icon: Int,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    PreferenceRow(
+        title = title,
+        icon = icon,
+        fontSize = TextStylingConstants.SIZE_LARGE,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier
+            .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_EXTRA_LARGE))
+            .clickable {
+                onClick()
+            }
+    ) {
+        Text(
+            text = text,
+            fontSize = TextStylingConstants.SIZE_MEDIUM,
+            textAlign = TextAlign.Start,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
