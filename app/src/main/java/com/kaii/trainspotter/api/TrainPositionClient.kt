@@ -111,11 +111,15 @@ class TrainPositionClient(
                 .date
                 .format(LocalDate.Formats.ISO)
 
-        onInfoChange(getMiniInfo(
-            info = initial.trainPosition.first {
-                it.timeStamp?.startsWith(date) ?: false
-            }
-        ))
+        val info = initial.trainPosition.firstOrNull {
+            it.timeStamp?.startsWith(date) ?: false
+        } ?: initial.trainPosition.firstOrNull()
+
+        Log.d(TAG, "INFO $info")
+
+        info?.let {
+            onInfoChange(getMiniInfo(info = info))
+        }
 
         val listener = object : EventSourceListener() {
             override fun onOpen(eventSource: EventSource, response: okhttp3.Response) {
@@ -125,13 +129,11 @@ class TrainPositionClient(
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                 val data = json.decodeFromString<TrainPositionResponseHolder>(data).response.result.first().trainPosition
 
-                onInfoChange(
-                    getMiniInfo(
-                        info = data.first {
-                            it.timeStamp?.startsWith(date) ?: false
-                        }
-                    )
-                )
+                val info = data.firstOrNull {
+                    it.timeStamp?.startsWith(date) ?: false
+                } ?: data.firstOrNull()
+
+                info?.let { onInfoChange(getMiniInfo(info = info)) }
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {

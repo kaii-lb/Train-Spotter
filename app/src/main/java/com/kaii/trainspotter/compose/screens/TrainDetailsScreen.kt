@@ -111,6 +111,7 @@ fun TrainDetailsScreen(
 
     val mainViewModel = LocalMainViewModel.current
     val navController = LocalNavController.current
+    val context = LocalContext.current
 
     BackHandler {
         mainViewModel.trainPositionClient.cancel()
@@ -120,11 +121,11 @@ fun TrainDetailsScreen(
     var speed by rememberSaveable { mutableIntStateOf(-1) }
     var bearing by rememberSaveable { mutableIntStateOf(-1) }
     var speedIsEstimate by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var showingMap by remember { mutableStateOf(false) }
-
     var currentMarker: Marker? by remember { mutableStateOf(null) }
+    var currentCoords by remember { mutableStateOf(LatLng()) }
     val icon = remember {
         IconFactory.getInstance(context)
             .fromBitmap(
@@ -150,26 +151,26 @@ fun TrainDetailsScreen(
                 speedIsEstimate = info.speedIsEstimate
                 bearing = info.bearing
 
-                if (info.coords != null && map != null) {
+                if (info.coords != null) {
                     coroutineScope.launch(Dispatchers.Main.immediate) {
-                        val position = LatLng(info.coords.latitude, info.coords.longitude)
-
-                        val markerOptions = MarkerOptions()
-                            .position(position)
-                            .title("Current train location")
-                            .snippet("Speed: ${speed}km/h")
-                            .icon(icon)
+                        currentCoords = LatLng(info.coords.latitude, info.coords.longitude)
 
                         if (currentMarker == null) {
-                            currentMarker = map!!.addMarker(markerOptions)
+                            val markerOptions = MarkerOptions()
+                                .position(currentCoords)
+                                .title("Current train location")
+                                .snippet("Speed: ${speed}km/h")
+                                .icon(icon)
+
+                            currentMarker = map?.addMarker(markerOptions)
                         } else {
-                            currentMarker?.position = position
+                            currentMarker?.position = currentCoords
                             currentMarker?.snippet = "Speed: ${speed}km/h"
                         }
 
-                        map!!.animateCamera(
+                        map?.animateCamera(
                             CameraUpdateFactory
-                                .newLatLngZoom(position, 14.0)
+                                .newLatLngZoom(currentCoords, 14.0)
                         )
                     }
                 }
@@ -195,6 +196,28 @@ fun TrainDetailsScreen(
                     showingMap = it
 
                     mapHeight = if (showingMap) (mapWidth / (16f / 9f)).toInt() else 0
+
+                    coroutineScope.launch {
+                        delay(800)
+
+                        if (currentMarker == null) {
+                            val markerOptions = MarkerOptions()
+                                .position(currentCoords)
+                                .title("Current train location")
+                                .snippet("Speed: ${speed}km/h")
+                                .icon(icon)
+
+                            currentMarker = map?.addMarker(markerOptions)
+                        } else {
+                            currentMarker?.position = currentCoords
+                            currentMarker?.snippet = "Speed: ${speed}km/h"
+                        }
+
+                        map?.animateCamera(
+                            CameraUpdateFactory
+                                .newLatLngZoom(currentCoords, 14.0)
+                        )
+                    }
                 }
             )
         },
@@ -318,10 +341,10 @@ fun TrainDetailsScreen(
                                 )
                             },
                             size = with(density) {
-                                 Size(
-                                     width = size.width - 32.dp.toPx(),
-                                     height = size.height + 32.dp.toPx() // make it taller so the bottom isn't rounded
-                                 )
+                                Size(
+                                    width = size.width - 32.dp.toPx(),
+                                    height = size.height + 32.dp.toPx() // make it taller so the bottom isn't rounded
+                                )
                             },
                             cornerRadius = with(density) {
                                 CornerRadius(16.dp.toPx(), 16.dp.toPx())

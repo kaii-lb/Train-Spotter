@@ -96,8 +96,9 @@ fun MapScreen(
     }
 
     val coroutineScope = rememberCoroutineScope()
-    LaunchedEffect(trainId) {
-        if (mainViewModel.trainPositionClient.getCurrentTrainId() == trainId) return@LaunchedEffect
+
+    LaunchedEffect(trainId, map) {
+        if (mainViewModel.trainPositionClient.getCurrentTrainId() == trainId || map == null) return@LaunchedEffect
 
         withContext(Dispatchers.IO) {
             mainViewModel.trainPositionClient.getStreamingInfo(
