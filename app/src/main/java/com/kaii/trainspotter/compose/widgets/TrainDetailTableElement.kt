@@ -58,11 +58,11 @@ fun TrainDetailTableElement(
     position: EventPosition,
     modifier: Modifier = Modifier
 ) {
-    val departure = remember { item.departureTimeFormatted }
-    val arrival = remember { item.arrivalTimeFormatted }
-    val estDeparture = remember { item.estimatedDepartureTimeFormatted }
-    val estArrival = remember { item.estimatedArrivalTimeFormatted }
-    val stopsAtLocation = remember {
+    val departure = remember(item) { item.departureTimeFormatted }
+    val arrival = remember(item) { item.arrivalTimeFormatted }
+    val estDeparture = remember(item) { item.estimatedDepartureTimeFormatted }
+    val estArrival = remember(item) { item.estimatedArrivalTimeFormatted }
+    val stopsAtLocation = remember(arrival, departure, estArrival, estDeparture) {
         arrival != departure
                 && arrival.isNotBlank() && departure.isNotBlank()
                 && estArrival != estDeparture

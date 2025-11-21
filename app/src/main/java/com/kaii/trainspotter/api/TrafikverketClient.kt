@@ -401,6 +401,7 @@ class TrafikverketClient(
                 Instant.parse(
                     input = details.arrivalTime.ifBlank { details.departureTime }
                 ).epochSeconds
-            })
+            }
+        )
     }
 }
