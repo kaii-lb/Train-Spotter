@@ -342,12 +342,12 @@ fun TrainDetailsScreen(
                             },
                             size = with(density) {
                                 Size(
-                                    width = size.width - 32.dp.toPx(),
+                                    width = size.width - 24.dp.toPx(),
                                     height = size.height + 32.dp.toPx() // make it taller so the bottom isn't rounded
                                 )
                             },
                             cornerRadius = with(density) {
-                                CornerRadius(16.dp.toPx(), 16.dp.toPx())
+                                CornerRadius(RoundedCornerConstants.ROUNDING_LARGE.toPx(), RoundedCornerConstants.ROUNDING_LARGE.toPx())
                             },
                             blendMode = BlendMode.DstOut,
                         )

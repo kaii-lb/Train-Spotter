@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.com.squareup.okhttp3.sse)
     implementation(libs.io.github.pushpalroy.jetlime)
     implementation(libs.org.maplibre.compose)
+    implementation(libs.com.github.kaii.lb.lavender.snackbars)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

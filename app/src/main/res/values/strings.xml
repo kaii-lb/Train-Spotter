@@ -19,6 +19,9 @@
     </string>
     <string name="login_api_key_open_link">Open Link</string>
     <string name="login_api_key_not_available">No API key found</string>
+    <string name="login_realtime_key_wrong">Realtime Key is not valid</string>
+    <string name="login_trafikverket_key_wrong">Trafikverket Key is not valid</string>
+    <string name="login_successful">Login successful!</string>
 
     <!--  Time Tables  -->
     <string name="timetable_arrivals">Arrivals</string>

@@ -19,6 +19,7 @@ datetime = "0.7.1"
 ui = "1.9.5"
 material3 = "1.5.0-alpha09"
 maplibre = "0.12.1"
+lavenderSnackbars = "b79cb851bc"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +49,7 @@ com-squareup-okhttp3-coroutines = { group = "com.squareup.okhttp3", name  = "okh
 com-squareup-okhttp3-sse = { group = "com.squareup.okhttp3", name  = "okhttp-sse", version.ref = "okhttp3" }
 io-github-pushpalroy-jetlime = { group = "io.github.pushpalroy", name = "jetlime", version.ref = "jetlime" }
 org-maplibre-compose = { group = "org.maplibre.compose", name = "maplibre-compose", version.ref = "maplibre" }
+com-github-kaii-lb-lavender-snackbars = { group = "com.github.kaii-lb", name = "Lavender-Snackbars", version.ref = "lavenderSnackbars" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
