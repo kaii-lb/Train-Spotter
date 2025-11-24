@@ -42,12 +42,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,65 +65,55 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.kaii.trainspotter.LocalMainViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.Information
-import com.kaii.trainspotter.api.LocationDetails
-import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainInformation
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.compose.widgets.shimmerEffect
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
-import com.kaii.trainspotter.helpers.Screens
-import com.kaii.trainspotter.helpers.ServerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.tintDrawable
+import com.kaii.trainspotter.models.train_details.TrainDetailsMapState
+import com.kaii.trainspotter.models.train_details.TrainDetailsViewModel
 import com.kaii.trainspotter.ui.theme.MapStyleUrl
-import com.pushpal.jetlime.ItemsList
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
-import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
 @Composable
 fun TrainDetailsScreen(
-    apiKey: String,
     trainId: String,
+    viewModel: TrainDetailsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val announcementsKeys = remember { mutableStateListOf<String>() } // so its sorted
-    val announcements = remember { mutableStateMapOf<String, LocationDetails>() }
-
-    val mainViewModel = LocalMainViewModel.current
     val navController = LocalNavController.current
-    val context = LocalContext.current
-
     BackHandler {
-        mainViewModel.trainPositionClient.cancel()
+        viewModel.cancel()
         navController.popBackStack()
     }
 
-    var speed by rememberSaveable { mutableIntStateOf(-1) }
-    var bearing by rememberSaveable { mutableIntStateOf(-1) }
-    var speedIsEstimate by remember { mutableStateOf(false) }
-
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var showingMap by remember { mutableStateOf(false) }
+    val mapState by viewModel.mapState.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var mapHeight by remember { mutableIntStateOf(0) }
+    var mapWidth by remember { mutableIntStateOf(0) }
+    var maxHeight by remember { mutableIntStateOf(0) }
     var currentMarker: Marker? by remember { mutableStateOf(null) }
-    var currentCoords by remember { mutableStateOf(LatLng()) }
-    val icon = remember {
+    val mapIcon = remember {
         IconFactory.getInstance(context)
             .fromBitmap(
                 tintDrawable(
@@ -137,60 +124,12 @@ fun TrainDetailsScreen(
             )
     }
 
-    val coroutineScope = rememberCoroutineScope()
-    LaunchedEffect(trainId, announcementsKeys.lastOrNull()) {
-        if (mainViewModel.trainPositionClient.getCurrentTrainId() == trainId || announcements.isEmpty()) return@LaunchedEffect
-
-        withContext(Dispatchers.IO) {
-            mainViewModel.trainPositionClient.getStreamingInfo(
-                trainId = trainId
-            ) { info ->
-                speed =
-                    if (announcements[announcementsKeys.lastOrNull()]?.passed == true) 0 else info.speed
-
-                speedIsEstimate = info.speedIsEstimate
-                bearing = info.bearing
-
-                if (info.coords != null) {
-                    coroutineScope.launch(Dispatchers.Main.immediate) {
-                        currentCoords = LatLng(info.coords.latitude, info.coords.longitude)
-
-                        if (currentMarker == null) {
-                            val markerOptions = MarkerOptions()
-                                .position(currentCoords)
-                                .title("Current train location")
-                                .snippet("Speed: ${speed}km/h")
-                                .icon(icon)
-
-                            currentMarker = map?.addMarker(markerOptions)
-                        } else {
-                            currentMarker?.position = currentCoords
-                            currentMarker?.snippet = "Speed: ${speed}km/h"
-                        }
-
-                        map?.animateCamera(
-                            CameraUpdateFactory
-                                .newLatLngZoom(currentCoords, 14.0)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    var mapHeight by remember { mutableIntStateOf(0) }
-    var mapWidth by remember { mutableIntStateOf(0) }
-
     Scaffold(
         topBar = {
             TopBar(
                 trainId = trainId,
-                productInfo = announcements.values.flatMap {
-                    it.productInfo
-                }.distinct(),
-                speed = speed,
-                speedIsEstimate = speedIsEstimate,
-                bearing = bearing,
+                productInfo = viewModel.getProductInfo(),
+                mapState = mapState,
                 showingMap = showingMap,
                 showMap = {
                     showingMap = it
@@ -200,102 +139,95 @@ fun TrainDetailsScreen(
                     coroutineScope.launch {
                         delay(800)
 
-                        if (currentMarker == null) {
-                            val markerOptions = MarkerOptions()
-                                .position(currentCoords)
-                                .title("Current train location")
-                                .snippet("Speed: ${speed}km/h")
-                                .icon(icon)
+                        if (mapState is TrainDetailsMapState.Loaded) {
+                            val state = mapState as TrainDetailsMapState.Loaded
 
-                            currentMarker = map?.addMarker(markerOptions)
-                        } else {
-                            currentMarker?.position = currentCoords
-                            currentMarker?.snippet = "Speed: ${speed}km/h"
+                            if (currentMarker == null) {
+                                val markerOptions = MarkerOptions()
+                                    .position(state.coords)
+                                    .title("Current train location")
+                                    .snippet("Speed: ${state.speed}km/h")
+                                    .icon(mapIcon)
+
+                                currentMarker = map?.addMarker(markerOptions)
+                            } else {
+                                currentMarker?.position = state.coords
+                                currentMarker?.snippet = "Speed: ${state.speed}km/h"
+                            }
+
+                            map?.animateCamera(
+                                CameraUpdateFactory
+                                    .newLatLngZoom(state.coords, 14.0)
+                            )
                         }
-
-                        map?.animateCamera(
-                            CameraUpdateFactory
-                                .newLatLngZoom(currentCoords, 14.0)
-                        )
                     }
-                }
+                },
+                onBackClick = viewModel::cancel
             )
         },
         modifier = modifier
     ) { innerPadding ->
-        val context = LocalContext.current
-        val coroutineScope = rememberCoroutineScope()
-        val trafikVerketClient = remember(apiKey) {
-            TrafikverketClient(
-                context = context,
-                apiKey = apiKey
+        val listState = rememberLazyListState()
+        val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+
+        LaunchedEffect(Unit) {
+            viewModel.startListening(
+                trainId = trainId,
+                onScroll = { index ->
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(index = index)
+                    }
+                }
             )
         }
 
-        val listState = rememberLazyListState()
-        var isRefreshing by remember { mutableStateOf(true) }
+        LaunchedEffect(mapState) {
+            if (mapState is TrainDetailsMapState.Loaded) {
+                val state = mapState as TrainDetailsMapState.Loaded
 
-        LaunchedEffect(announcements.isNotEmpty()) {
-            if (announcements.isNotEmpty()) {
-                announcements.values.maxByOrNull { it.timeAtLocation ?: "" }?.let { passed ->
-                    listState.animateScrollToItem(
-                        index = announcements.values.indexOf(passed)
-                    )
+                if (currentMarker == null) {
+                    val markerOptions = MarkerOptions()
+                        .position(state.coords)
+                        .title("Current train location")
+                        .snippet("Speed: ${state.speed}km/h")
+                        .icon(mapIcon)
+
+                    currentMarker = map?.addMarker(markerOptions)
+                } else {
+                    currentMarker?.position = state.coords
+                    currentMarker?.snippet = "Speed: ${state.speed}km/h"
                 }
-            }
-        }
 
-        LaunchedEffect(Unit) {
-            while (true) {
-                val new = trafikVerketClient.getRouteDataForId(trainId = trainId)
-
-                announcements.clear()
-                announcements.putAll(new)
-
-                announcementsKeys.clear()
-                announcementsKeys.addAll(new.keys)
-                isRefreshing = false
-
-                delay(ServerConstants.UPDATE_TIME)
+                map?.animateCamera(
+                    CameraUpdateFactory
+                        .newLatLngZoom(
+                            latLng = state.coords,
+                            zoom = 14.0
+                        )
+                )
             }
         }
 
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = {
-                coroutineScope.launch(Dispatchers.IO) {
-                    isRefreshing = true
-
-                    val new = trafikVerketClient.getRouteDataForId(trainId = trainId)
-
-                    announcements.clear()
-                    announcements.putAll(new)
-
-                    announcementsKeys.clear()
-                    announcementsKeys.addAll(new.keys)
-
-                    delay(ServerConstants.REFRESH_TIME)
-
-                    isRefreshing = false
-                }
+                viewModel.forceRefresh()
             },
             modifier = Modifier
                 .padding(innerPadding)
+                .onGloballyPositioned {
+                    maxHeight = it.size.height
+                }
         ) {
             val density = LocalDensity.current
+            val items by viewModel.items.collectAsStateWithLifecycle()
             val animatedMapHeight by animateDpAsState(
                 targetValue = with(density) { mapHeight.toDp() }
             )
 
             JetLimeColumn(
                 listState = listState,
-                itemsList = ItemsList(
-                    if (isRefreshing && announcementsKeys.isEmpty()) {
-                        (0..9).toList()
-                    } else {
-                        announcementsKeys
-                    }
-                ),
+                itemsList = items,
                 style = JetLimeDefaults.columnStyle(
                     itemSpacing = 16.dp,
                 ),
@@ -313,9 +245,9 @@ fun TrainDetailsScreen(
                         TableShimmerLoadingElement(
                             position = position
                         )
-                    } else if (announcements[item] != null) {
+                    } else {
                         TrainDetailTableElement(
-                            item = announcements[item]!!,
+                            item = item,
                             position = position
                         )
                     }
@@ -380,15 +312,12 @@ fun TrainDetailsScreen(
                                     map = mapLibreMap
 
                                     mapLibreMap.addOnMapClickListener {
-                                        mainViewModel.trainPositionClient.cancel()
-                                        navController.navigate(
-                                            Screens.Map(
-                                                trainId = trainId,
-                                                productInfo = announcements.values.flatMap {
-                                                    it.productInfo
-                                                }.distinct()
-                                            )
-                                        )
+                                        mapHeight = if (mapHeight == maxHeight) {
+                                            (mapWidth / (16f / 9f)).toInt()
+                                        } else {
+                                            maxHeight
+                                        }
+
                                         false
                                     }
                                 }
@@ -400,8 +329,9 @@ fun TrainDetailsScreen(
                     )
 
                     var showingShimmer by remember { mutableStateOf(true) }
-                    LaunchedEffect(mapHeight) {
-                        if (mapHeight > 0) showingShimmer = true
+                    LaunchedEffect(showingMap) {
+                        // show shimmer only on first showing the map
+                        if (showingMap) showingShimmer = true
 
                         delay(1000)
                         showingShimmer = false
@@ -431,26 +361,23 @@ fun TrainDetailsScreen(
 private fun TopBar(
     trainId: String,
     productInfo: List<Information>,
-    speed: Int,
-    speedIsEstimate: Boolean,
-    bearing: Int,
+    mapState: TrainDetailsMapState,
     showingMap: Boolean,
     modifier: Modifier = Modifier,
-    showMap: (Boolean) -> Unit
+    showMap: (Boolean) -> Unit,
+    onBackClick: () -> Unit
 ) {
     val navController = LocalNavController.current
-    val mainViewModel = LocalMainViewModel.current
 
     val animatedSpeed by animateIntAsState(
-        targetValue = speed,
+        targetValue = (mapState as? TrainDetailsMapState.Loaded)?.speed ?: -1,
         animationSpec = tween(
             durationMillis = 800
         )
     )
 
-
     val animatedBearing by animateIntAsState(
-        targetValue = bearing,
+        targetValue = (mapState as? TrainDetailsMapState.Loaded)?.bearing ?: -1,
         animationSpec = tween(
             durationMillis = 800
         )
@@ -460,7 +387,7 @@ private fun TopBar(
         navigationIcon = {
             IconButton(
                 onClick = {
-                    mainViewModel.trainPositionClient.cancel()
+                    onBackClick()
                     navController.popBackStack()
                 }
             ) {
@@ -495,15 +422,16 @@ private fun TopBar(
                     }
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                val title by remember {
+                val title by remember(mapState, info) {
                     derivedStateOf {
                         val desc =
                             if (info != null) "${info.description} | $trainId"
                             else "Train: $trainId"
 
-                        if (animatedSpeed == -1) {
+                        if (mapState is TrainDetailsMapState.Loading) {
                             desc
                         } else {
+                            val speedIsEstimate = (mapState as TrainDetailsMapState.Loaded).speedIsEstimate
                             val speedText = animatedSpeed.toString() + "km/h" + if (speedIsEstimate) "*" else ""
 
                             if ((desc + speedText).length >= 15) {
@@ -523,7 +451,7 @@ private fun TopBar(
         },
         actions = {
             AnimatedVisibility(
-                visible = animatedBearing != -1,
+                visible = mapState !is TrainDetailsMapState.Loading,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut()
             ) {
