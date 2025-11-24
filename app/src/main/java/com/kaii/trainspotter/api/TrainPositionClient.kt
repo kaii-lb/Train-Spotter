@@ -16,7 +16,6 @@ import okhttp3.coroutines.executeAsync
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
-import java.util.concurrent.TimeUnit
 import kotlin.math.PI
 import kotlin.math.asin
 import kotlin.math.cos
@@ -24,6 +23,7 @@ import kotlin.math.floor
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 private const val TAG = "com.kaii.trainspotter.api.TrainPositionClient"
@@ -34,10 +34,10 @@ class TrainPositionClient(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.MINUTES)
-        .readTimeout(10, TimeUnit.MINUTES)
-        .callTimeout(10, TimeUnit.MINUTES)
-        .webSocketCloseTimeout(10, TimeUnit.MINUTES)
+        .connectTimeout(10.minutes)
+        .readTimeout(10.minutes)
+        .callTimeout(10.minutes)
+        .webSocketCloseTimeout(10.minutes)
         .build()
 
     private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)

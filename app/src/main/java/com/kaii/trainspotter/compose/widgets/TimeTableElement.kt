@@ -90,10 +90,10 @@ fun TimeTableElement(
                 .fillMaxWidth()
                 .wrapContentHeight()
                 .clickable {
-                    if (item.route.transportMode == TransportMode.Train || item.route.transportMode == TransportMode.Metro) {
+                    if (item.route?.transportMode == TransportMode.Train || item.route?.transportMode == TransportMode.Metro) {
                         navController.navigate(
                             route = Screens.TrainDetails(
-                                trainId = item.trip.technicalNumber.toString()
+                                trainId = item.trip?.technicalNumber.toString()
                             )
                         )
                     }
@@ -113,7 +113,7 @@ fun TimeTableElement(
                     horizontalAlignment = Alignment.Start
                 ) {
                     Text(
-                        text = item.route.destination.name,
+                        text = item.route?.destination?.name ?: "",
                         fontSize = TextStylingConstants.SIZE_MEDIUM,
                         fontWeight = FontWeight.Bold
                     )
@@ -136,7 +136,7 @@ fun TimeTableElement(
                     }
 
                     Text(
-                        text = "Via: ${item.route.transportMode}",
+                        text = "Via: ${item.route?.transportMode}",
                         fontSize = TextStylingConstants.SIZE_MEDIUM
                     )
                 }

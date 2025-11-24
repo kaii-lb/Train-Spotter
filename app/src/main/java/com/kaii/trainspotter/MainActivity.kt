@@ -40,6 +40,8 @@ import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.models.main.MainViewModel
 import com.kaii.trainspotter.models.main.MainViewModelFactory
+import com.kaii.trainspotter.models.time_table.TimeTableViewModel
+import com.kaii.trainspotter.models.time_table.TimeTableViewModelFactory
 import com.kaii.trainspotter.models.train_details.TrainDetailsViewModel
 import com.kaii.trainspotter.models.train_details.TrainDetailsViewModelFactory
 import com.kaii.trainspotter.ui.theme.TrainSpotterTheme
@@ -141,10 +143,18 @@ class MainActivity : ComponentActivity() {
             ) {
                 val screen = it.toRoute<Screens.TimeTable>()
 
+                val context = LocalContext.current
+                val viewModel = viewModel<TimeTableViewModel>(
+                    factory = TimeTableViewModelFactory(
+                        context = context,
+                        apiKey = (apiKey as ApiKey.Available).realtimeKey
+                    )
+                )
+
                 TimeTableScreen(
-                    apiKey = (apiKey as ApiKey.Available).realtimeKey,
                     stopId = screen.stopId,
-                    stopName = screen.stopName
+                    stopName = screen.stopName,
+                    viewModel = viewModel
                 )
             }
 

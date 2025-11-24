@@ -150,10 +150,10 @@ data class TimetableEntry(
     val realtime: String,
     val delay: Int,
     val canceled: Boolean,
-    val route: Route,
-    val trip: Trip,
-    val agency: Agency,
-    val stop: Stop,
+    val route: Route?,
+    val trip: Trip?,
+    val agency: Agency?,
+    val stop: Stop?,
 
     @SerialName("scheduled_platform")
     val scheduledPlatform: Platform? = null,

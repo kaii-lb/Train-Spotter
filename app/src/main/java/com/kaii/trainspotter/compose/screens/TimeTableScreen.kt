@@ -1,11 +1,13 @@
 package com.kaii.trainspotter.compose.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -18,135 +20,114 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ExperimentalComposeApi
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.ArrivalsResponse
-import com.kaii.trainspotter.api.DeparturesResponse
-import com.kaii.trainspotter.api.RealtimeClient
-import com.kaii.trainspotter.api.TimetableEntry
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TimeTableElement
 import com.kaii.trainspotter.compose.widgets.TimeTableType
 import com.kaii.trainspotter.compose.widgets.TimeTableTypeDisplay
 import com.kaii.trainspotter.helpers.Screens
-import com.kaii.trainspotter.helpers.ServerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.models.time_table.TimeTableViewModel
 import com.pushpal.jetlime.ItemsList
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 
 
 @OptIn(ExperimentalTime::class, ExperimentalComposeApi::class)
 @Composable
 fun TimeTableScreen(
-    apiKey: String,
     stopName: String,
     stopId: String,
+    viewModel: TimeTableViewModel,
     modifier: Modifier = Modifier
 ) {
-    var type by remember { mutableStateOf(TimeTableType.Arrivals) }
+    val navController = LocalNavController.current
+    BackHandler {
+        viewModel.cancel()
+        navController.popBackStack()
+    }
 
+    val listState = rememberLazyListState()
+    LaunchedEffect(Unit) {
+        viewModel.startListening(
+            stopId = stopId,
+            onScroll = { index ->
+                listState.scrollToItem(0)
+            }
+        )
+    }
+
+    val type by viewModel.type.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopBar(
                 stopName = stopName,
                 type = type,
-                setType = {
-                    type = it
-                }
+                setType = { newType ->
+                    viewModel.switchType(
+                        type = newType,
+                        onScroll = { index ->
+                            listState.scrollToItem(0)
+                        }
+                    )
+                },
+                onBackClick = viewModel::cancel
             )
         },
         modifier = modifier
     ) { innerPadding ->
-        val listState = rememberLazyListState()
-        var departures: DeparturesResponse? by remember { mutableStateOf(null) }
-        var arrivals: ArrivalsResponse? by remember { mutableStateOf(null) }
-
-        val context = LocalContext.current
-        val coroutineScope = rememberCoroutineScope()
-        val realtimeClient = remember {
-            RealtimeClient(
-                context = context,
-                apiKey = apiKey
-            )
-        }
-
-        var isRefreshing by remember { mutableStateOf(true) }
-        var previousType by remember { mutableStateOf(type) }
-        LaunchedEffect(type) {
-            while (true) {
-                if (type == TimeTableType.Arrivals) {
-                    arrivals = realtimeClient.fetchArrivals(stopId)
-                } else {
-                    departures = realtimeClient.fetchDepartures(stopId)
-                }
-
-                if (previousType != type && listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-                    listState.scrollToItem(0)
-                    previousType = type
-                }
-                isRefreshing = false
-
-                delay(ServerConstants.UPDATE_TIME)
-            }
-        }
+        val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = {
-                coroutineScope.launch(Dispatchers.IO) {
-                    isRefreshing = true
-
-                    if (type == TimeTableType.Arrivals) {
-                        arrivals = realtimeClient.fetchArrivals(stopId)
-                    } else {
-                        departures = realtimeClient.fetchDepartures(stopId)
-                    }
-
-                    delay(ServerConstants.REFRESH_TIME)
-
-                    isRefreshing = false
-                }
+                viewModel.forceRefresh()
             },
             modifier = Modifier
+                .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            val items =
-                if (type == TimeTableType.Arrivals) arrivals?.arrivals ?: emptyList()
-                else departures?.departures ?: emptyList()
+            // because for some reason mutable state flows do not like to be joined and update frequently
+            val arrivals by viewModel.arrivals.collectAsStateWithLifecycle()
+            val departures by viewModel.departures.collectAsStateWithLifecycle()
+
+            val items by remember {
+                derivedStateOf {
+                    if (type == TimeTableType.Arrivals) arrivals?.arrivals ?: emptyList()
+                    else departures?.departures ?: emptyList()
+                }
+            }
 
             JetLimeColumn(
                 listState = listState,
                 itemsList = ItemsList(
-                    if (isRefreshing && items.isEmpty()) {
-                        (0..9).toList()
-                    } else {
-                        items
-                    }
+                    items =
+                        if (isRefreshing && items.isEmpty()) viewModel.placeholderItems
+                        else items
                 ),
                 style = JetLimeDefaults.columnStyle(
                     itemSpacing = 16.dp,
                 ),
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
             ) { _, item, position ->
                 AnimatedContent(
                     targetState = isRefreshing,
                     transitionSpec = {
                         fadeIn().togetherWith(fadeOut())
-                    }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
                 ) { state ->
                     if (state) {
                         TableShimmerLoadingElement(
@@ -154,7 +135,7 @@ fun TimeTableScreen(
                         )
                     } else {
                         TimeTableElement(
-                            item = item as TimetableEntry,
+                            item = item,
                             position = position
                         )
                     }
@@ -169,8 +150,9 @@ fun TimeTableScreen(
 private fun TopBar(
     stopName: String,
     type: TimeTableType,
+    modifier: Modifier = Modifier,
     setType: (type: TimeTableType) -> Unit,
-    modifier: Modifier = Modifier
+    onBackClick: () -> Unit
 ) {
     Column {
         val navController = LocalNavController.current
@@ -179,6 +161,7 @@ private fun TopBar(
             navigationIcon = {
                 IconButton(
                     onClick = {
+                        onBackClick()
                         navController.popBackStack()
                     }
                 ) {
