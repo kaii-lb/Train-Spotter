@@ -135,6 +135,7 @@ fun SearchField(
                         },
                         onClick = {
                             setSearchMode(mode)
+                            onSearch()
                             expanded = false
                         }
                     )
@@ -225,6 +226,7 @@ fun SearchField(
                                 .clip(CircleShape)
                                 .clickable {
                                     setText("")
+                                    onSearch()
                                 }
                                 .padding(all = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,

@@ -16,6 +16,8 @@ import com.kaii.trainspotter.datastore.ApiKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 data class SearchResult(
     val name: String,
@@ -44,12 +46,36 @@ class SearchManager(
 
     private val _results = mutableStateListOf<SearchResult>()
     private val _isSearching = mutableStateOf(false)
+    private var currentSearchText = ""
+    private var mode = SearchMode.Station
+    @OptIn(ExperimentalUuidApi::class)
+    private val placeholders =
+        (0..9).map {
+            SearchResult(
+                name = "",
+                description = "",
+                id = Uuid.random().toString(),
+                hasError = false,
+                mode = mode
+            )
+        }
 
     val isSearching by derivedStateOf { _isSearching.value }
     val results by derivedStateOf { _results.toList() }
 
     fun search(name: String, searchMode: SearchMode, resources: Resources) = coroutineScope.launch(Dispatchers.IO) {
+        if (name == currentSearchText && searchMode == mode) return@launch
+
+        if (name == "") {
+            clearResults()
+            return@launch
+        }
+
+        currentSearchText = name
+        mode = searchMode
+
         clearResults()
+        _results.addAll(placeholders)
         _isSearching.value = true
 
         if (searchMode == SearchMode.Station) {
@@ -71,6 +97,7 @@ class SearchManager(
 
             _results.addAll(new - _results)
             _results.retainAll(new)
+            _results.removeAll(placeholders)
         } else {
             val new = trafikverketClient.getRouteDataForId(trainId = name.trim()).values
 

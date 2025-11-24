@@ -1,8 +1,11 @@
 package com.kaii.trainspotter.compose.screens
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,7 +106,7 @@ fun SearchScreen(
                 state = listState
             ) {
                 items(
-                    count = searchManager.results.size + if (searchManager.isSearching) 10 else 0,
+                    count = searchManager.results.size,
                     key = { index ->
                         if (index in 0..searchManager.results.size - 1) {
                             searchManager.results[index].id
@@ -115,85 +118,88 @@ fun SearchScreen(
                     AnimatedContent(
                         targetState = searchManager.isSearching,
                         transitionSpec = {
-                            fadeIn().togetherWith(fadeOut())
-                        }
+                            (fadeIn(animationSpec = tween(durationMillis = 300)) + expandVertically(animationSpec = tween(durationMillis = 600)))
+                                .togetherWith(
+                                    (fadeOut(animationSpec = tween(durationMillis = 300)) + shrinkVertically(animationSpec = tween(durationMillis = 600)))
+                                )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateItem()
                     ) { state ->
                         if (state) {
                             SearchShimmerLoadingItem(
                                 position =
                                     when (index) {
                                         0 -> SearchItemPositon.Top
-                                        searchManager.results.size + 9 -> SearchItemPositon.Bottom
+                                        searchManager.results.size - 1 -> SearchItemPositon.Bottom
                                         else -> SearchItemPositon.Middle
                                     }
                             )
                         } else {
-                            if (index in 0..searchManager.results.size - 1) {
-                                val item = searchManager.results[index]
+                            val item = searchManager.results[index]
 
-                                if (item.mode == SearchMode.Station) {
-                                    SearchItem(
-                                        name = item.name,
-                                        description = item.description,
-                                        hasError = item.hasError,
-                                        position =
-                                            if (searchManager.results.size == 1) SearchItemPositon.Single
-                                            else if (index == 0) SearchItemPositon.Top
-                                            else if (index == searchManager.results.size - 1) SearchItemPositon.Bottom
-                                            else SearchItemPositon.Middle,
-                                        modifier = Modifier
-                                            .animateItem()
-                                    ) {
-                                        navController.navigate(
-                                            route = Screens.TimeTable(
-                                                stopName = item.name,
-                                                stopId = item.id
-                                            )
+                            if (item.mode == SearchMode.Station) {
+                                SearchItem(
+                                    name = item.name,
+                                    description = item.description,
+                                    hasError = item.hasError,
+                                    position =
+                                        if (searchManager.results.size == 1) SearchItemPositon.Single
+                                        else if (index == 0) SearchItemPositon.Top
+                                        else if (index == searchManager.results.size - 1) SearchItemPositon.Bottom
+                                        else SearchItemPositon.Middle
+                                ) {
+                                    navController.navigate(
+                                        route = Screens.TimeTable(
+                                            stopName = item.name,
+                                            stopId = item.id
                                         )
-                                    }
-                                } else {
-                                    SearchItem(
-                                        name = item.name,
-                                        description = item.description,
-                                        position = SearchItemPositon.Single,
-                                        hasError = item.hasError,
-                                        modifier = Modifier
-                                            .animateItem()
-                                    ) {
-                                        navController.navigate(
-                                            route = Screens.TrainDetails(
-                                                trainId = item.id
-                                            )
+                                    )
+                                }
+                            } else {
+                                SearchItem(
+                                    name = item.name,
+                                    description = item.description,
+                                    position = SearchItemPositon.Single,
+                                    hasError = item.hasError
+                                ) {
+                                    navController.navigate(
+                                        route = Screens.TrainDetails(
+                                            trainId = item.id
                                         )
-                                    }
+                                    )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            if (searchManager.results.isEmpty() && !searchManager.isSearching) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            horizontal = 8.dp,
-                            vertical = 48.dp
-                        ),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            id =
-                                if (searchMode == SearchMode.Station) R.drawable.wrong_location
-                                else R.drawable.train_not_found
-                        ),
-                        contentDescription = "No such location found",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .size(56.dp)
-                    )
+                item {
+                    if (searchManager.results.isEmpty() && !searchManager.isSearching) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    horizontal = 8.dp,
+                                    vertical = 48.dp
+                                )
+                                .animateItem(),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    id =
+                                        if (searchMode == SearchMode.Station) R.drawable.wrong_location
+                                        else R.drawable.train_not_found
+                                ),
+                                contentDescription = "No such location found",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .size(56.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
