@@ -138,7 +138,9 @@ fun SearchScreen(
                                     }
                             )
                         } else {
-                            val item = searchManager.results[index]
+                            val item = searchManager.results.getOrNull(index)
+
+                            if (item == null) return@AnimatedContent
 
                             if (item.mode == SearchMode.Station) {
                                 SearchItem(
