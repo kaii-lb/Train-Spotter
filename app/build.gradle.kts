@@ -15,8 +15,8 @@ android {
         applicationId = "com.kaii.trainspotter"
         minSdk = 30
         targetSdk = 36
-        versionCode = 155
-        versionName = "1.5.5"
+        versionCode = 156
+        versionName = "1.5.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
