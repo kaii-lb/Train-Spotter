@@ -20,6 +20,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -45,6 +47,8 @@ import com.kaii.trainspotter.models.time_table.TimeTableViewModelFactory
 import com.kaii.trainspotter.models.train_details.TrainDetailsViewModel
 import com.kaii.trainspotter.models.train_details.TrainDetailsViewModelFactory
 import com.kaii.trainspotter.ui.theme.TrainSpotterTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.maplibre.android.MapLibre
 import kotlin.reflect.typeOf
 
@@ -57,20 +61,28 @@ val LocalMainViewModel = compositionLocalOf<MainViewModel> {
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
 
         MapLibre.getInstance(applicationContext)
 
         enableEdgeToEdge()
 
+        val mainViewModel: MainViewModel = ViewModelProvider.create(
+            store = viewModelStore,
+            factory = MainViewModelFactory(applicationContext)
+        )[MainViewModel::class]
+
+        val initialApiKey = runBlocking {
+            mainViewModel.settings.user.getApiKey().first()
+        }
+
         setContent {
             TrainSpotterTheme {
                 val navController = rememberNavController()
-                val mainViewModel: MainViewModel = viewModel(
-                    factory = MainViewModelFactory(applicationContext)
-                )
 
-                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = ApiKey.NotAvailable)
+                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = initialApiKey)
                 val savedApiKey = rememberSaveable(
                     saver = ApiKey.Saver,
                     inputs = arrayOf(apiKey)

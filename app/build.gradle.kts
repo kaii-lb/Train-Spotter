@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.navigation)
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.lifecycle)
+    implementation(libs.androidx.splashscreen)
 
     implementation(libs.org.jetbrains.kotlinx.serialization)
     implementation(libs.org.jetbrains.kotlinx.datetime)
