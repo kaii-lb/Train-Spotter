@@ -108,8 +108,9 @@ fun SearchScreen(
                 items(
                     count = searchManager.results.size,
                     key = { index ->
-                        if (index in 0..searchManager.results.size - 1) {
-                            searchManager.results[index].id
+                        val snapshot = searchManager.results
+                        if (index in 0..snapshot.size - 1) {
+                            snapshot[index].id
                         } else {
                             index // fallback, shouldn't ever be here
                         }

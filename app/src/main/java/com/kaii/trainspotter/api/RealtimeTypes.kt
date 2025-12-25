@@ -169,7 +169,7 @@ data class TimetableEntry(
     @OptIn(ExperimentalTime::class)
     val time: Long
         get() {
-            val timeZone = TimeZone.currentSystemDefault().offsetAt(Clock.System.now()).format(UtcOffset.Formats.ISO)
+            val timeZone = TimeZone.of("Europe/Stockholm").offsetAt(Clock.System.now()).format(UtcOffset.Formats.ISO)
             val needed = realtime.ifBlank { scheduled } + timeZone
 
             return Instant.parse(
