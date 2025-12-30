@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +29,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.kaii.lavender.snackbars.LavenderSnackbarBox
+import com.kaii.lavender.snackbars.LavenderSnackbarHostState
 import com.kaii.trainspotter.api.Alert
 import com.kaii.trainspotter.api.LocationShortCodeMap
 import com.kaii.trainspotter.api.RailwayEventCodeMap
@@ -35,6 +38,7 @@ import com.kaii.trainspotter.api.Stop
 import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.compose.screens.LoginScreen
 import com.kaii.trainspotter.compose.screens.SearchScreen
+import com.kaii.trainspotter.compose.screens.ServiceTesting
 import com.kaii.trainspotter.compose.screens.Settings
 import com.kaii.trainspotter.compose.screens.TimeTableScreen
 import com.kaii.trainspotter.compose.screens.TrainDetailsScreen
@@ -111,7 +115,13 @@ class MainActivity : ComponentActivity() {
                     LocalNavController provides navController,
                     LocalMainViewModel provides mainViewModel
                 ) {
-                    Content(apiKey = savedApiKey)
+                    val snackbarHostState = remember {
+                        LavenderSnackbarHostState()
+                    }
+
+                    LavenderSnackbarBox(snackbarHostState = snackbarHostState) {
+                        Content(apiKey = savedApiKey)
+                    }
                 }
             }
         }
@@ -195,6 +205,10 @@ class MainActivity : ComponentActivity() {
                     trainId = screen.trainId,
                     viewModel = viewModel
                 )
+            }
+
+            composable<Screens.ServiceTesting> {
+                ServiceTesting()
             }
         }
     }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,10 +59,11 @@ fun TrainDetailTableElement(
     position: EventPosition,
     modifier: Modifier = Modifier
 ) {
-    val departure = remember(item) { item.departureTimeFormatted }
-    val arrival = remember(item) { item.arrivalTimeFormatted }
-    val estDeparture = remember(item) { item.estimatedDepartureTimeFormatted }
-    val estArrival = remember(item) { item.estimatedArrivalTimeFormatted }
+    val locationDetails by rememberUpdatedState(item)
+    val departure = remember(locationDetails) { locationDetails.departureTimeFormatted }
+    val arrival = remember(locationDetails) { locationDetails.arrivalTimeFormatted }
+    val estDeparture = remember(locationDetails) { locationDetails.estimatedDepartureTimeFormatted }
+    val estArrival = remember(locationDetails) { locationDetails.estimatedArrivalTimeFormatted }
     val stopsAtLocation = remember(arrival, departure, estArrival, estDeparture) {
         arrival != departure
                 && arrival.isNotBlank() && departure.isNotBlank()
@@ -72,7 +74,7 @@ fun TrainDetailTableElement(
         style = JetLimeEventDefaults.eventStyle(
             position = position,
             pointType =
-                if (item.passed) EventPointType.Default
+                if (locationDetails.passed) EventPointType.Default
                 else EventPointType.EMPTY
         ),
         additionalContentMaxWidth = 88.dp,
@@ -85,7 +87,7 @@ fun TrainDetailTableElement(
 
             if (showInfoDialog) {
                 TimeInfoDialog(
-                    item = item,
+                    item = locationDetails,
                     onDismiss = {
                         showInfoDialog = false
                     }
@@ -95,7 +97,7 @@ fun TrainDetailTableElement(
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor =
-                        if (item.delay.isNotBlank()) MaterialTheme.colorScheme.errorContainer
+                        if (locationDetails.delay.isNotBlank()) MaterialTheme.colorScheme.errorContainer
                         else MaterialTheme.colorScheme.surfaceContainer
                 ),
                 modifier = Modifier
@@ -174,20 +176,20 @@ fun TrainDetailTableElement(
                     horizontalAlignment = Alignment.Start
                 ) {
                     Text(
-                        text = item.name,
+                        text = locationDetails.name,
                         fontSize = TextStylingConstants.SIZE_MEDIUM,
                         fontWeight = FontWeight.Bold
                     )
 
-                    if (item.track.isNotBlank()) {
+                    if (locationDetails.track.isNotBlank()) {
                         Text(
-                            text = "Track: ${item.track}",
+                            text = "Track: ${locationDetails.track}",
                             fontSize = TextStylingConstants.SIZE_MEDIUM
                         )
                     }
 
-                    if (item.delay.isNotBlank()) {
-                        val delayString = stringResource(id = R.string.timetable_delay, item.delay).split(" ")
+                    if (locationDetails.delay.isNotBlank()) {
+                        val delayString = stringResource(id = R.string.timetable_delay, locationDetails.delay).split(" ")
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(
@@ -206,8 +208,8 @@ fun TrainDetailTableElement(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (item.canceled
-                        || item.deviations.any {
+                    if (locationDetails.canceled
+                        || locationDetails.deviations.any {
                             it.text.lowercase().contains("inställt")
                                     || it.text.lowercase().contains("inställd")
                         }
@@ -249,12 +251,12 @@ fun TrainDetailTableElement(
                         }
                     }
 
-                    if (item.deviations.isNotEmpty()) {
+                    if (locationDetails.deviations.isNotEmpty()) {
                         var showDialog by remember { mutableStateOf(false) }
 
                         if (showDialog) {
                             TrafikAlertDialog(
-                                alerts = item.deviations,
+                                alerts = locationDetails.deviations,
                                 onDismiss = {
                                     showDialog = false
                                 }

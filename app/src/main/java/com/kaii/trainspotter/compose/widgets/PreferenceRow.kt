@@ -189,13 +189,14 @@ fun TextPreferencesRow(
     text: String,
     @DrawableRes icon: Int,
     modifier: Modifier = Modifier,
+    clearBackground: Boolean = false,
     onClick: () -> Unit
 ) {
     PreferenceRow(
         title = title,
         icon = icon,
         fontSize = TextStylingConstants.SIZE_LARGE,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = if (clearBackground) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
         modifier = modifier
             .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_EXTRA_LARGE))
             .clickable {

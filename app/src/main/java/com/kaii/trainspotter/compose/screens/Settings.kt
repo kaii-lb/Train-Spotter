@@ -31,6 +31,7 @@ import com.kaii.trainspotter.compose.widgets.ApiKeyPreferenceRow
 import com.kaii.trainspotter.compose.widgets.PreferencesSeparatorText
 import com.kaii.trainspotter.compose.widgets.TextPreferencesRow
 import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
 
 @Composable
@@ -143,6 +144,23 @@ fun Settings(
                     text = version,
                     icon = R.drawable.info,
                 ) {}
+            }
+
+            item {
+                PreferencesSeparatorText(
+                    text = stringResource(id = R.string.debugging)
+                )
+            }
+
+            item {
+                val navController = LocalNavController.current
+                TextPreferencesRow(
+                    title = stringResource(id = R.string.service_testing),
+                    text = stringResource(id = R.string.service_testing_desc),
+                    icon = R.drawable.bug_report,
+                ) {
+                    navController.navigate(Screens.ServiceTesting)
+                }
             }
         }
     }

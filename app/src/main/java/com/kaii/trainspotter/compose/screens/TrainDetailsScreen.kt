@@ -172,6 +172,7 @@ fun TrainDetailsScreen(
 
         LaunchedEffect(Unit) {
             viewModel.startListening(
+                context = context,
                 trainId = trainId,
                 onScroll = { index ->
                     coroutineScope.launch {

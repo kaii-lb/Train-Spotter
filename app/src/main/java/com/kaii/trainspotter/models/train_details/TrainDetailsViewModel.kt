@@ -2,12 +2,17 @@
 
 package com.kaii.trainspotter.models.train_details
 
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kaii.trainspotter.R
+import com.kaii.trainspotter.TrainUpdateConnection
+import com.kaii.trainspotter.TrainUpdateService
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainPositionClient
@@ -36,7 +41,7 @@ sealed interface TrainDetailsMapState {
 
 class TrainDetailsViewModel(
     context: Context,
-    apiKey: String
+    private val apiKey: String
 ) : ViewModel() {
     private val _announcementsKeys = MutableStateFlow(emptyList<String>()) // so its sorted
     private val _announcements = MutableStateFlow(emptyMap<String, LocationDetails>())
@@ -79,15 +84,12 @@ class TrainDetailsViewModel(
         )
     }
 
-    val items = combine(_announcementsKeys, _refreshing) { keys, refreshing ->
+    val items = combine(_announcements, _refreshing) { announcements, refreshing ->
         ItemsList(
-            if (refreshing && keys.isEmpty()) {
+            if (refreshing && announcements.isEmpty()) {
                 placeholderItems
             } else {
-                val announcements = _announcements.value
-                keys.mapNotNull {
-                    announcements[it]
-                }
+                announcements.values.toList()
             }
         )
     }.stateIn(
@@ -96,11 +98,17 @@ class TrainDetailsViewModel(
         initialValue = ItemsList(placeholderItems)
     )
 
+    private val localTrainUpdateConnection = TrainUpdateConnection()
+
+    override fun onCleared() {
+        super.onCleared()
+        localTrainUpdateConnection.service?.stopListening()
+    }
+
     private suspend fun fetchData(trainId: String) {
         val new = trafikverketClient.getRouteDataForId(trainId = trainId)
 
         _announcements.value = new
-
         _announcementsKeys.value = new.keys.toList()
     }
 
@@ -131,7 +139,40 @@ class TrainDetailsViewModel(
         }
     }
 
+    private suspend fun startForegroundService(
+        context: Context
+    ) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val permGranted = notificationManager.areNotificationsEnabled()
+
+        if (!permGranted) return
+
+        localTrainUpdateConnection.service?.stopListening()
+        context.startForegroundService(
+            Intent(context, TrainUpdateService::class.java).also { intent ->
+                context.bindService(intent, localTrainUpdateConnection, Context.BIND_AUTO_CREATE)
+            }
+        )
+
+        var tries = 0
+        do {
+            delay(1000)
+            tries += 1
+        } while (localTrainUpdateConnection.service == null && tries < 10)
+
+        localTrainUpdateConnection.service!!.setup(
+            apiKey = apiKey,
+            trainId = trainId,
+            initialTitle = _announcements.value.values.firstOrNull {
+                !it.passed
+            }?.name ?: context.resources.getString(R.string.loading),
+            initialSpeed = "0km/h"
+        )
+        localTrainUpdateConnection.service!!.startListening()
+    }
+
     fun startListening(
+        context: Context,
         trainId: String,
         onScroll: (index: Int) -> Unit
     ) = viewModelScope.launch(Dispatchers.IO) {
@@ -147,15 +188,21 @@ class TrainDetailsViewModel(
             }
         }
 
-        launch {
+        launch(Dispatchers.IO) {
             getPositionInfo()
         }
 
-        while (this@TrainDetailsViewModel.trainId == trainId) {
-            fetchData(trainId = trainId)
-            _refreshing.value = false
+        launch {
+            startForegroundService(context = context)
+        }
 
-            delay(ServerConstants.UPDATE_TIME)
+        launch(Dispatchers.IO) {
+            while (this@TrainDetailsViewModel.trainId == trainId) {
+                fetchData(trainId = trainId)
+                _refreshing.value = false
+
+                delay(ServerConstants.UPDATE_TIME)
+            }
         }
     }
 

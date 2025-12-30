@@ -22,4 +22,7 @@ interface Screens {
         val stopName: String,
         val stopId: String
     ) : Screens
+
+    @Serializable
+    object ServiceTesting : Screens
 }
