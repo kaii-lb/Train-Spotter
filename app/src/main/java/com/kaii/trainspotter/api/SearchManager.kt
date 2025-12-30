@@ -16,9 +16,11 @@ import com.kaii.trainspotter.datastore.ApiKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+@Serializable
 data class SearchResult(
     val name: String,
     val description: String,

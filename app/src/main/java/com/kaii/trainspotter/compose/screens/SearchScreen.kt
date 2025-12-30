@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -34,12 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaii.trainspotter.LocalMainViewModel
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.rememberSearchManager
+import com.kaii.trainspotter.compose.widgets.PreferencesSeparatorText
 import com.kaii.trainspotter.compose.widgets.SearchField
 import com.kaii.trainspotter.compose.widgets.SearchItem
 import com.kaii.trainspotter.compose.widgets.SearchItemPositon
@@ -75,6 +78,8 @@ fun SearchScreen(
 
             var searchedText by remember { mutableStateOf("") }
             val searchMode by mainViewModel.searchMode.collectAsStateWithLifecycle()
+
+            val history by mainViewModel.settings.history.getSearchHistory().collectAsStateWithLifecycle(initialValue = emptyList())
 
             SearchField(
                 text = searchedText,
@@ -153,6 +158,7 @@ fun SearchScreen(
                                         else if (index == searchManager.results.size - 1) SearchItemPositon.Bottom
                                         else SearchItemPositon.Middle
                                 ) {
+                                    mainViewModel.settings.history.addToSearchHistory(item)
                                     navController.navigate(
                                         route = Screens.TimeTable(
                                             stopName = item.name,
@@ -178,29 +184,66 @@ fun SearchScreen(
                     }
                 }
 
-                item {
-                    if (searchManager.results.isEmpty() && !searchManager.isSearching) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    horizontal = 8.dp,
-                                    vertical = 48.dp
-                                )
-                                .animateItem(),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    id =
-                                        if (searchMode == SearchMode.Station) R.drawable.wrong_location
-                                        else R.drawable.train_not_found
-                                ),
-                                contentDescription = "No such location found",
-                                tint = MaterialTheme.colorScheme.error,
+                if (searchManager.results.isEmpty() && !searchManager.isSearching) {
+                    if (searchMode == SearchMode.Station && !history.isEmpty()) {
+                        item {
+                            PreferencesSeparatorText(
+                                text = stringResource(id = R.string.history),
+                                align = TextAlign.Center,
                                 modifier = Modifier
-                                    .size(56.dp)
+                                    .padding(
+                                        start = 12.dp, end = 12.dp,
+                                        top = 0.dp, bottom = 12.dp
+                                    )
                             )
+                        }
+
+                        itemsIndexed(
+                            items = history
+                        ) { index, item ->
+                            SearchItem(
+                                name = item.name,
+                                description = item.description,
+                                hasError = item.hasError,
+                                position =
+                                    if (history.size == 1) SearchItemPositon.Single
+                                    else if (index == 0) SearchItemPositon.Top
+                                    else if (index == history.size - 1) SearchItemPositon.Bottom
+                                    else SearchItemPositon.Middle
+                            ) {
+                                mainViewModel.settings.history.addToSearchHistory(item)
+                                navController.navigate(
+                                    route = Screens.TimeTable(
+                                        stopName = item.name,
+                                        stopId = item.id
+                                    )
+                                )
+                            }
+                        }
+                    } else {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        horizontal = 8.dp,
+                                        vertical = 48.dp
+                                    )
+                                    .animateItem(),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                                Icon(
+                                    painter = painterResource(
+                                        id =
+                                            if (searchMode == SearchMode.Station) R.drawable.wrong_location_filled
+                                            else R.drawable.train_not_found
+                                    ),
+                                    contentDescription = "No such location found",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                )
+                            }
                         }
                     }
                 }

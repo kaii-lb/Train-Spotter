@@ -57,6 +57,7 @@
     <string name="loading">Loading…</string>
     <string name="reached_location">Reached %s</string>
     <string name="stopped">Stopped</string>
+    <string name="history">History</string>
 
     <!--  Settings  -->
     <string name="settings">Settings</string>

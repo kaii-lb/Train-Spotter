@@ -54,8 +54,10 @@ import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
+@Serializable
 enum class SearchMode(
     @param:DrawableRes val icon: Int,
     @param:StringRes val description: Int

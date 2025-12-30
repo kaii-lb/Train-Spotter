@@ -45,13 +45,19 @@ import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 
 @Composable
-fun PreferencesSeparatorText(text: String) {
+fun PreferencesSeparatorText(
+    text: String,
+    modifier: Modifier = Modifier,
+    align: TextAlign = TextAlign.Start
+) {
     Text(
         text = text,
         fontSize = TextStylingConstants.SIZE_MEDIUM,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
+        textAlign = align,
+        modifier = modifier
             .padding(12.dp)
+            .fillMaxWidth()
     )
 }
 
