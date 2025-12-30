@@ -3,10 +3,12 @@ package com.kaii.trainspotter
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.drawable.Icon
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -30,7 +32,9 @@ private const val TAG = "com.kaii.trainspotter.TrainUpdateService"
 class TrainUpdateService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 100
-        private const val CHANNEL_ID = "train_update_service"
+        private const val CHANNEL_ID = "com.kaii.trainspotter.train_update_service"
+
+        const val ACTION_HIDE_NOTIF = "com.kaii.trainspotter.hide_status_notification"
     }
 
     private lateinit var notificationManager: NotificationManager
@@ -38,7 +42,7 @@ class TrainUpdateService : Service() {
     private var job: Job? = null
 
     private lateinit var trafikverketClient: TrafikverketClient
-    private lateinit var trainPositionClient: TrainPositionClient
+    private var trainPositionClient: TrainPositionClient? = null
 
     private var trainId: String? = null
     private var announcements = sortedMapOf<String, LocationDetails>()
@@ -55,11 +59,6 @@ class TrainUpdateService : Service() {
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-
-        val channel = NotificationChannel(CHANNEL_ID, "Train Spotter Channel", NotificationManager.IMPORTANCE_HIGH)
-        channel.description = "Handles notification updates"
-
-        notificationManager.createNotificationChannel(channel)
     }
 
     override fun onBind(p0: Intent?): IBinder? {
@@ -67,6 +66,15 @@ class TrainUpdateService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val action = intent?.action ?: return START_STICKY
+
+        when (action) {
+            ACTION_HIDE_NOTIF -> {
+                stopListening()
+                return START_NOT_STICKY
+            }
+        }
+
         return START_STICKY
     }
 
@@ -94,16 +102,17 @@ class TrainUpdateService : Service() {
     }
 
     fun stopListening() {
+        running = false
+        trainId = null
+        trainPositionClient?.cancel()
+        job?.cancel()
+
         stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
 
         notificationManager.cancel(NOTIFICATION_ID)
         notificationManager.cancelAll()
         notificationManager.deleteNotificationChannel(CHANNEL_ID)
-
-        running = false
-        job?.cancel()
-        trainId = null
-        trainPositionClient.cancel()
 
         Log.d(TAG, "Service canceled.")
     }
@@ -111,6 +120,13 @@ class TrainUpdateService : Service() {
     @OptIn(DelicateCoroutinesApi::class)
     fun startListening() {
         this.running = true
+
+        if (notificationManager.notificationChannels.none { it.id == CHANNEL_ID }) {
+            val channel = NotificationChannel(CHANNEL_ID, "Train Spotter Channel", NotificationManager.IMPORTANCE_HIGH)
+            channel.description = "Handles notification updates"
+
+            notificationManager.createNotificationChannel(channel)
+        }
 
         val notification = buildNotification(
             progress = 0,
@@ -137,12 +153,16 @@ class TrainUpdateService : Service() {
     }
 
     private suspend fun fetchStopData() {
+        if (!running) return
+
         val new = trafikverketClient.getRouteDataForId(trainId = trainId!!)
         announcements = new
 
+        if (!running) return
+
         val position = announcements.values.firstOrNull { value ->
             !value.passed
-        } ?: announcements.values.last()
+        } ?: announcements.values.lastOrNull()
 
         if (position == announcements.values.last()) {
             this.currentSpeed = applicationContext.resources.getString(R.string.stopped)
@@ -167,9 +187,9 @@ class TrainUpdateService : Service() {
     }
 
     private suspend fun fetchPositionData() = withContext(Dispatchers.IO) {
-        if (trainPositionClient.getCurrentTrainId() == trainId || announcements.isEmpty()) return@withContext
+        if (trainPositionClient?.getCurrentTrainId() == trainId || announcements.isEmpty() || !running) return@withContext
 
-        trainPositionClient.getStreamingInfo(
+        trainPositionClient?.getStreamingInfo(
             trainId = trainId!!
         ) { info ->
             val lastKey = announcements.keys.lastOrNull()
@@ -198,13 +218,15 @@ class TrainUpdateService : Service() {
             }
 
 
-            val updatedNotification = buildNotification(
-                progress = this@TrainUpdateService.currentProgress,
-                contentTitle = this@TrainUpdateService.currentTitle,
-                speed = this@TrainUpdateService.currentSpeed
-            )
+            if (running) {
+                val updatedNotification = buildNotification(
+                    progress = this@TrainUpdateService.currentProgress,
+                    contentTitle = this@TrainUpdateService.currentTitle,
+                    speed = this@TrainUpdateService.currentSpeed
+                )
 
-            notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+                notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+            }
         }
     }
 
@@ -214,7 +236,7 @@ class TrainUpdateService : Service() {
         speed: String
     ): Notification {
         val notification =
-            Notification.Builder(this, CHANNEL_ID)
+            Notification.Builder(applicationContext, CHANNEL_ID)
                 .setSubText("Train: ${trainId!!}")
                 .setShowWhen(false)
                 .setContentTitle(contentTitle)
@@ -222,6 +244,20 @@ class TrainUpdateService : Service() {
                 .setSmallIcon(R.drawable.train_filled_48px)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
+                .setActions(
+                    Notification.Action.Builder(
+                        Icon.createWithResource(applicationContext, R.drawable.close),
+                        "Hide",
+                        PendingIntent.getForegroundService(
+                            applicationContext,
+                            100,
+                            Intent(applicationContext, TrainUpdateService::class.java).apply {
+                                action = ACTION_HIDE_NOTIF
+                            },
+                            PendingIntent.FLAG_IMMUTABLE
+                        )
+                    ).build()
+                )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             notification.style =

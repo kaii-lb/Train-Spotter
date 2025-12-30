@@ -2,6 +2,8 @@
 
 package com.kaii.trainspotter.compose.screens
 
+import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -38,6 +40,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -68,6 +71,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
+import com.kaii.trainspotter.TrainUpdateConnection
+import com.kaii.trainspotter.TrainUpdateService
 import com.kaii.trainspotter.api.Information
 import com.kaii.trainspotter.api.TrainInformation
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
@@ -97,7 +102,28 @@ fun TrainDetailsScreen(
     viewModel: TrainDetailsViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val navController = LocalNavController.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val trainUpdateConnection = remember { TrainUpdateConnection() }
+    DisposableEffect(Unit) {
+        context.startForegroundService(
+            Intent(context, TrainUpdateService::class.java).also { intent ->
+                context.bindService(intent, trainUpdateConnection, Context.BIND_AUTO_CREATE)
+            }
+        )
+
+        onDispose {
+            context.startService(
+                Intent(context, TrainUpdateService::class.java).apply {
+                    action = TrainUpdateService.ACTION_HIDE_NOTIF
+                }
+            )
+            context.unbindService(trainUpdateConnection)
+        }
+    }
+
     BackHandler {
         viewModel.cancel()
         navController.popBackStack()
@@ -107,8 +133,6 @@ fun TrainDetailsScreen(
     var showingMap by remember { mutableStateOf(false) }
     val mapState by viewModel.mapState.collectAsStateWithLifecycle()
 
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     var mapHeight by remember { mutableIntStateOf(0) }
     var mapWidth by remember { mutableIntStateOf(0) }
     var maxHeight by remember { mutableIntStateOf(0) }
@@ -162,7 +186,9 @@ fun TrainDetailsScreen(
                         }
                     }
                 },
-                onBackClick = viewModel::cancel
+                onBackClick = {
+                    viewModel.cancel()
+                }
             )
         },
         modifier = modifier
@@ -174,6 +200,7 @@ fun TrainDetailsScreen(
             viewModel.startListening(
                 context = context,
                 trainId = trainId,
+                connection = trainUpdateConnection,
                 onScroll = { index ->
                     coroutineScope.launch {
                         listState.animateScrollToItem(index = index)

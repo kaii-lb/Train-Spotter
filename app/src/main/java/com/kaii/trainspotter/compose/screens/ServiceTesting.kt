@@ -1,6 +1,5 @@
 package com.kaii.trainspotter.compose.screens
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +17,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,13 +50,31 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ServiceTesting() {
+    val context = LocalContext.current
+    val trainUpdateConnection = remember { TrainUpdateConnection() }
+    DisposableEffect(Unit) {
+        context.startForegroundService(
+            Intent(context, TrainUpdateService::class.java).also { intent ->
+                context.bindService(intent, trainUpdateConnection, Context.BIND_AUTO_CREATE)
+            }
+        )
+
+        onDispose {
+            context.startService(
+                Intent(context, TrainUpdateService::class.java).apply {
+                    action = TrainUpdateService.ACTION_HIDE_NOTIF
+                }
+            )
+            context.unbindService(trainUpdateConnection)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopBar()
         }
     ) { innerPadding ->
         var trainId by remember { mutableStateOf("") }
-        val trainUpdateConnection = remember { TrainUpdateConnection() }
 
         LazyColumn(
             modifier = Modifier
@@ -104,7 +122,6 @@ fun ServiceTesting() {
             }
 
             item {
-                val context = LocalContext.current
                 val resources = LocalResources.current
                 val coroutineScope = rememberCoroutineScope()
                 val apiKey by LocalMainViewModel.current.settings.user.getApiKey().collectAsStateWithLifecycle(initialValue = ApiKey.NotAvailable)
@@ -117,12 +134,6 @@ fun ServiceTesting() {
                 ) {
                     if (trainId.isNotBlank()) {
                         trainUpdateConnection.service?.stopListening()
-                        val activity = context as Activity
-                        activity.startForegroundService(
-                            Intent(context, TrainUpdateService::class.java).apply {
-                                context.bindService(this, trainUpdateConnection, Context.BIND_AUTO_CREATE)
-                            }
-                        )
 
                         coroutineScope.launch {
                             do {
@@ -153,6 +164,8 @@ fun ServiceTesting() {
             }
 
             item {
+                val context = LocalContext.current
+
                 TextPreferencesRow(
                     title = stringResource(id = R.string.service_testing_stop),
                     icon = R.drawable.stop,
@@ -160,6 +173,7 @@ fun ServiceTesting() {
                     clearBackground = true
                 ) {
                     trainUpdateConnection.service?.stopListening()
+                    context.unbindService(trainUpdateConnection)
                 }
             }
         }

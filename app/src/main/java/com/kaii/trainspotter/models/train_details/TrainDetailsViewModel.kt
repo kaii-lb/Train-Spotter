@@ -4,7 +4,6 @@ package com.kaii.trainspotter.models.train_details
 
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,7 +11,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.TrainUpdateConnection
-import com.kaii.trainspotter.TrainUpdateService
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainPositionClient
@@ -98,13 +96,6 @@ class TrainDetailsViewModel(
         initialValue = ItemsList(placeholderItems)
     )
 
-    private val localTrainUpdateConnection = TrainUpdateConnection()
-
-    override fun onCleared() {
-        super.onCleared()
-        localTrainUpdateConnection.service?.stopListening()
-    }
-
     private suspend fun fetchData(trainId: String) {
         val new = trafikverketClient.getRouteDataForId(trainId = trainId)
 
@@ -140,27 +131,23 @@ class TrainDetailsViewModel(
     }
 
     private suspend fun startForegroundService(
-        context: Context
+        context: Context,
+        connection: TrainUpdateConnection
     ) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val permGranted = notificationManager.areNotificationsEnabled()
 
         if (!permGranted) return
 
-        localTrainUpdateConnection.service?.stopListening()
-        context.startForegroundService(
-            Intent(context, TrainUpdateService::class.java).also { intent ->
-                context.bindService(intent, localTrainUpdateConnection, Context.BIND_AUTO_CREATE)
-            }
-        )
+        connection.service?.stopListening()
 
         var tries = 0
         do {
             delay(1000)
             tries += 1
-        } while (localTrainUpdateConnection.service == null && tries < 10)
+        } while (connection.service == null && tries < 10)
 
-        localTrainUpdateConnection.service!!.setup(
+        connection.service!!.setup(
             apiKey = apiKey,
             trainId = trainId,
             initialTitle = _announcements.value.values.firstOrNull {
@@ -168,12 +155,13 @@ class TrainDetailsViewModel(
             }?.name ?: context.resources.getString(R.string.loading),
             initialSpeed = "0km/h"
         )
-        localTrainUpdateConnection.service!!.startListening()
+        connection.service!!.startListening()
     }
 
     fun startListening(
         context: Context,
         trainId: String,
+        connection: TrainUpdateConnection,
         onScroll: (index: Int) -> Unit
     ) = viewModelScope.launch(Dispatchers.IO) {
         this@TrainDetailsViewModel.trainId = trainId
@@ -193,7 +181,10 @@ class TrainDetailsViewModel(
         }
 
         launch {
-            startForegroundService(context = context)
+            startForegroundService(
+                context = context,
+                connection = connection
+            )
         }
 
         launch(Dispatchers.IO) {
@@ -224,6 +215,7 @@ class TrainDetailsViewModel(
         trainPositionClient.cancel()
         _announcements.value = emptyMap()
         _announcementsKeys.value = emptyList()
+
         trainId = ""
         currentCoords = LatLng()
     }

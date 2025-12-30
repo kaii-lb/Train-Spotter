@@ -189,14 +189,14 @@ class TrainPositionClient(
         previousCoords = coords
 
         return if (deltaTime <= 0.0000277778 || speed > 400 || distance < 0.1) {
-            previousSpeeds.last()
+            previousSpeeds.last().coerceAtLeast(0)
         } else {
             previousSpeeds.add(speed)
             val average = floor(previousSpeeds.sum().toFloat() / previousSpeeds.size).toInt()
 
             if (previousSpeeds.size > 4) previousSpeeds.removeAt(0)
 
-            average
+            average.coerceAtLeast(0)
         }
     }
 
