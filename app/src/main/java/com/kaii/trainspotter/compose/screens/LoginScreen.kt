@@ -1,5 +1,6 @@
 package com.kaii.trainspotter.compose.screens
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.RealtimeClient
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.compose.widgets.ApiKeyExplanationDialog
+import com.kaii.trainspotter.compose.widgets.NotificationPermissionDialog
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
@@ -55,6 +57,18 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var showDialog by remember {
+        mutableStateOf(
+            context.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED
+        )
+    }
+    if (showDialog) {
+        NotificationPermissionDialog {
+            showDialog = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopBar()

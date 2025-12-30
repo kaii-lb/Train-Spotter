@@ -1,6 +1,8 @@
 package com.kaii.trainspotter.compose.widgets
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,14 +19,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -34,11 +39,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
+import com.kaii.lavender.snackbars.LavenderSnackbarController
+import com.kaii.lavender.snackbars.LavenderSnackbarEvents
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.Information
 import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import kotlinx.coroutines.launch
 
 @Composable
 fun DialogBase(
@@ -278,6 +286,76 @@ fun TrainInfoDialog(
 
         FullWidthDialogButton(
             text = stringResource(id = R.string.close),
+            onClick = onDismiss
+        )
+    }
+}
+
+@Composable
+fun NotificationPermissionDialog(
+    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit
+) {
+    val resources = LocalResources.current
+    val coroutineScope = rememberCoroutineScope()
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
+            coroutineScope.launch {
+                LavenderSnackbarController.pushEvent(
+                    LavenderSnackbarEvents.MessageEvent(
+                        message =
+                            if (result) {
+                                resources.getString(R.string.permission_notifications_granted)
+                            } else {
+                                resources.getString(R.string.permission_notifications_not_granted)
+                            },
+                        icon = R.drawable.exclamation,
+                        duration = SnackbarDuration.Short
+                    )
+                )
+
+                onDismiss()
+            }
+        }
+
+    DialogBase(
+        onDismiss = onDismiss,
+        modifier = modifier
+            .padding(16.dp)
+    ) {
+        Text(
+            text = stringResource(id = R.string.permission_notifications),
+            fontSize = TextStylingConstants.SIZE_LARGE,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.wrapContentSize()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = stringResource(id = R.string.permission_notifications_desc),
+            fontSize = TextStylingConstants.SIZE_MEDIUM,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .wrapContentSize()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        FullWidthDialogButton(
+            text = stringResource(id = R.string.permissions_grant)
+        ) {
+            launcher.launch("android.permission.POST_NOTIFICATIONS")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        FullWidthDialogButton(
+            text = stringResource(id = R.string.close),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             onClick = onDismiss
         )
     }

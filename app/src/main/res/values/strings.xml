@@ -75,4 +75,11 @@
     <string name="service_testing_start_desc">Shows notification and starts listening to updates</string>
     <string name="service_testing_stop">Stop Service</string>
     <string name="service_testing_stop_desc">Removes notification and stops listening to updates</string>
+
+    <!--  Permissions  -->
+    <string name="permissions_grant">Grant</string>
+    <string name="permission_notifications_granted">Push notifications allowed!</string>
+    <string name="permission_notifications_not_granted">Push notifications disabled</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_notifications_desc">Push notifications permission is required in order to display a progress status notification. If this behaviour is not desired just ignore this permission request.</string>
 </resources>
