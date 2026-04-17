@@ -51,6 +51,7 @@ class TrainUpdateService : Service() {
     private var currentProgress = 0
     private var currentTitle = ""
     private var currentSpeed = ""
+    private var speedIsEstimate = false
 
     inner class TrainUpdateBinder : Binder() {
         val service = this@TrainUpdateService
@@ -61,7 +62,7 @@ class TrainUpdateService : Service() {
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
-    override fun onBind(p0: Intent?): IBinder? {
+    override fun onBind(p0: Intent?): IBinder {
         return binder
     }
 
@@ -87,6 +88,7 @@ class TrainUpdateService : Service() {
         this.trainId = trainId
         this.currentTitle = initialTitle
         this.currentSpeed = initialSpeed
+        this.speedIsEstimate = false
 
         this.trafikverketClient =
             TrafikverketClient(
@@ -131,7 +133,8 @@ class TrainUpdateService : Service() {
         val notification = buildNotification(
             progress = 0,
             contentTitle = currentTitle,
-            speed = currentSpeed
+            speed = currentSpeed,
+            speedIsEstimate = speedIsEstimate
         )
 
         startForeground(NOTIFICATION_ID, notification)
@@ -164,7 +167,7 @@ class TrainUpdateService : Service() {
             !value.passed
         } ?: announcements.values.lastOrNull()
 
-        if (position == announcements.values.last()) {
+        if (position == announcements.values.last() && position.passed) {
             this.currentSpeed = applicationContext.resources.getString(R.string.stopped)
             this.currentProgress = announcements.keys.size
             this.currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
@@ -180,7 +183,8 @@ class TrainUpdateService : Service() {
         val updatedNotification = buildNotification(
             progress = this.currentProgress,
             contentTitle = this.currentTitle,
-            speed = this.currentSpeed
+            speed = this.currentSpeed,
+            speedIsEstimate = this.speedIsEstimate
         )
 
         notificationManager.notify(NOTIFICATION_ID, updatedNotification)
@@ -202,7 +206,7 @@ class TrainUpdateService : Service() {
 
             val position = announcements[key]
 
-            if (position == announcements.values.last()) {
+            if (position == announcements.values.last() && position.passed) {
                 this@TrainUpdateService.currentSpeed = applicationContext.resources.getString(R.string.stopped)
                 this@TrainUpdateService.currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
                 this@TrainUpdateService.currentProgress = announcements.keys.size
@@ -215,6 +219,7 @@ class TrainUpdateService : Service() {
                 this@TrainUpdateService.currentTitle = "${position?.name ?: "Unknown"} $delay"
                 this@TrainUpdateService.currentSpeed = "${speed}km/h" + if (speedIsEstimate) "*" else ""
                 this@TrainUpdateService.currentProgress = announcements.keys.indexOf(key)
+                this@TrainUpdateService.speedIsEstimate = speedIsEstimate
             }
 
 
@@ -222,7 +227,8 @@ class TrainUpdateService : Service() {
                 val updatedNotification = buildNotification(
                     progress = this@TrainUpdateService.currentProgress,
                     contentTitle = this@TrainUpdateService.currentTitle,
-                    speed = this@TrainUpdateService.currentSpeed
+                    speed = this@TrainUpdateService.currentSpeed,
+                    speedIsEstimate = this@TrainUpdateService.speedIsEstimate
                 )
 
                 notificationManager.notify(NOTIFICATION_ID, updatedNotification)
@@ -233,7 +239,8 @@ class TrainUpdateService : Service() {
     private fun buildNotification(
         progress: Int,
         contentTitle: String,
-        speed: String
+        speed: String,
+        speedIsEstimate: Boolean
     ): Notification {
         val notification =
             Notification.Builder(applicationContext, CHANNEL_ID)
@@ -242,6 +249,11 @@ class TrainUpdateService : Service() {
                 .setContentTitle(contentTitle)
                 .setContentText(speed)
                 .setSmallIcon(R.drawable.train_filled_48px)
+                .apply {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+                        setShortCriticalText("${speed}km/h" + if (speedIsEstimate) "*" else "")
+                    }
+                }
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setActions(

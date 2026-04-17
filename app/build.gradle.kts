@@ -20,8 +20,8 @@ android {
         applicationId = "com.kaii.trainspotter"
         minSdk = 30
         targetSdk = 36
-        versionCode = 160
-        versionName = "1.6.0"
+        versionCode = 170
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -68,6 +68,8 @@ dependencies {
     implementation(libs.com.squareup.okhttp3.sse)
     implementation(libs.io.github.pushpalroy.jetlime)
     implementation(libs.org.maplibre.compose)
+    implementation(libs.org.maplibre.turf)
+
     implementation(libs.com.github.kaii.lb.lavender.snackbars)
 
     testImplementation(libs.junit)

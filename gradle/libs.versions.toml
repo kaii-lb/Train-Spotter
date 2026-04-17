@@ -19,6 +19,7 @@ datetime = "0.7.1"
 ui = "1.10.1"
 material3 = "1.5.0-alpha12"
 maplibre = "0.12.1"
+turf = "6.0.1"
 lavenderSnackbars = "b79cb851bc"
 splashScreen = "1.2.0"
 
@@ -49,8 +50,10 @@ org-jetbrains-kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotl
 com-squareup-okhttp3 = { group = "com.squareup.okhttp3", name  = "okhttp", version.ref = "okhttp3" }
 com-squareup-okhttp3-coroutines = { group = "com.squareup.okhttp3", name  = "okhttp-coroutines", version.ref = "okhttp3" }
 com-squareup-okhttp3-sse = { group = "com.squareup.okhttp3", name  = "okhttp-sse", version.ref = "okhttp3" }
-io-github-pushpalroy-jetlime = { group = "io.github.pushpalroy", name = "jetlime", version.ref = "jetlime" }
 org-maplibre-compose = { group = "org.maplibre.compose", name = "maplibre-compose", version.ref = "maplibre" }
+org-maplibre-turf = { group = "org.maplibre.gl", name = "android-sdk-turf", version.ref = "turf" }
+
+io-github-pushpalroy-jetlime = { group = "io.github.pushpalroy", name = "jetlime", version.ref = "jetlime" }
 com-github-kaii-lb-lavender-snackbars = { group = "com.github.kaii-lb", name = "Lavender-Snackbars", version.ref = "lavenderSnackbars" }
 
 [plugins]
