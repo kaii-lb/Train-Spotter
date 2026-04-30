@@ -70,7 +70,7 @@ class TrainPositionClient(
 
     private suspend fun getInitialInfo(
         trainId: String
-    ): TrainPositionResult? {
+    ): TrainPositionResult {
         val request = Request.Builder()
             .url(endpoint)
             .method(
@@ -97,8 +97,6 @@ class TrainPositionClient(
         onInfoChange: (trainPosition: TrainPositionMini) -> Unit,
     ) {
         val initial = getInitialInfo(trainId)
-
-        if (initial == null) return
 
         _currentTrainId = trainId
 

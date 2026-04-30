@@ -20,8 +20,8 @@ android {
         applicationId = "com.kaii.trainspotter"
         minSdk = 30
         targetSdk = 36
-        versionCode = 170
-        versionName = "1.7.0"
+        versionCode = 180
+        versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -31,6 +31,16 @@ android {
             isShrinkResources = true
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    splits {
+        abi {
+            isUniversalApk = false
+            isEnable = true
+
+            reset()
+            include(includes = arrayOf("armeabi-v7a", "arm64-v8a"))
         }
     }
 
@@ -71,6 +81,8 @@ dependencies {
     implementation(libs.org.maplibre.turf)
 
     implementation(libs.com.github.kaii.lb.lavender.snackbars)
+
+    implementation(libs.mil.nga.geopackage.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

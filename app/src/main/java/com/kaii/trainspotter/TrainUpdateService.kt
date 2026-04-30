@@ -167,7 +167,7 @@ class TrainUpdateService : Service() {
             !value.passed
         } ?: announcements.values.lastOrNull()
 
-        if (position == announcements.values.last() && position.passed) {
+        if (position == announcements.values.lastOrNull() && position?.passed == true && !currentSpeed.startsWith("0km/h")) {
             this.currentSpeed = applicationContext.resources.getString(R.string.stopped)
             this.currentProgress = announcements.keys.size
             this.currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
@@ -206,7 +206,7 @@ class TrainUpdateService : Service() {
 
             val position = announcements[key]
 
-            if (position == announcements.values.last() && position.passed) {
+            if (position == announcements.values.lastOrNull() && position?.passed == true && !currentSpeed.startsWith("0km/h")) {
                 this@TrainUpdateService.currentSpeed = applicationContext.resources.getString(R.string.stopped)
                 this@TrainUpdateService.currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
                 this@TrainUpdateService.currentProgress = announcements.keys.size

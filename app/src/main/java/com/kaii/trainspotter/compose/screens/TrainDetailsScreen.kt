@@ -68,7 +68,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hasRoute
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.TrainUpdateConnection
@@ -79,12 +81,15 @@ import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.compose.widgets.shimmerEffect
+import com.kaii.trainspotter.helpers.OnBackPressedEffect
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
+import com.kaii.trainspotter.helpers.Screens
+import com.kaii.trainspotter.helpers.SpeedPointDisplay
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.tintDrawable
 import com.kaii.trainspotter.models.train_details.TrainDetailsMapState
 import com.kaii.trainspotter.models.train_details.TrainDetailsViewModel
-import com.kaii.trainspotter.ui.theme.MapStyleUrl
+import com.kaii.trainspotter.ui.theme.MapStyleJson
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
 import kotlinx.coroutines.delay
@@ -95,6 +100,13 @@ import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.sources.GeoJsonOptions
+import org.maplibre.android.style.sources.GeoJsonSource
 
 @Composable
 fun TrainDetailsScreen(
@@ -331,12 +343,32 @@ fun TrainDetailsScreen(
                         .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_LARGE))
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 ) {
+                    val speedPointDisplay = remember(context) {
+                        SpeedPointDisplay(context)
+                    }
+
+                    var mapStyle by remember { mutableStateOf<Style?>(null) }
+                    LaunchedEffect(map, mapStyle, showingMap) {
+                        map?.let {
+                            coroutineScope.launch {
+                                speedPointDisplay.fetchSpeedsForBounds(
+                                    mapLibreMap = it
+                                )
+                            }
+                        }
+                    }
+
+                    OnBackPressedEffect {
+                        if (!it.hasRoute(Screens.TrainDetails::class)) {
+                            speedPointDisplay.release()
+                        }
+                    }
+
                     AndroidView(
                         factory = { context ->
                             MapView(context).apply {
                                 onCreate(null)
                                 getMapAsync { mapLibreMap ->
-                                    mapLibreMap.setStyle(MapStyleUrl)
                                     map = mapLibreMap
 
                                     mapLibreMap.addOnMapClickListener {
@@ -347,6 +379,86 @@ fun TrainDetailsScreen(
                                         }
 
                                         false
+                                    }
+
+                                    mapLibreMap.setStyle(
+                                        Style.Builder()
+                                            .fromJson(MapStyleJson)
+                                    ) { style ->
+                                        if (style.getSource("speed-source") == null) {
+                                            val sourceOptions = GeoJsonOptions()
+                                                .withCluster(true)
+                                                .withClusterRadius(10)
+                                                .withClusterMaxZoom(8)
+                                                .withMinZoom(2)
+                                                .withClusterProperty( // TODO: not working, fix
+                                                    "cluster_speed",
+                                                    Expression.min(
+                                                        Expression.accumulated(),
+                                                        Expression.get("speed")
+                                                    ),
+                                                    Expression.get("speed")
+                                                )
+
+                                            val source = GeoJsonSource("speed-source", sourceOptions)
+                                            style.addSource(source)
+
+                                            ContextCompat.getDrawable(
+                                                context,
+                                                R.drawable.circle
+                                            )?.let {
+                                                style.addImage("bubble-icon", it)
+
+                                                val speedDisplay = Expression.coalesce(
+                                                    Expression.get("cluster_speed"),
+                                                    Expression.get("speed"),
+                                                    Expression.literal("?")
+                                                )
+
+                                                val textLayer = SymbolLayer("speed-text-layer", "speed-source")
+                                                    .withProperties(
+                                                        PropertyFactory.textField(speedDisplay),
+
+                                                        PropertyFactory.textFont(
+                                                            arrayOf(
+                                                                "Open Sans Regular",
+                                                                "Arial Unicode MS Regular"
+                                                            )
+                                                        ),
+
+                                                        PropertyFactory.textSize(
+                                                            Expression.step(
+                                                                Expression.length(speedDisplay),
+                                                                14f,
+                                                                Expression.stop(2, 14f),
+                                                                Expression.stop(3, 12f)
+                                                            )
+                                                        ),
+
+                                                        PropertyFactory.textColor(Color.Black.toArgb()),
+                                                        PropertyFactory.textAnchor(Property.TEXT_ANCHOR_CENTER),
+                                                        PropertyFactory.textPadding(0f),
+
+                                                        PropertyFactory.iconImage("bubble-icon"),
+                                                        PropertyFactory.iconSize(1.3f),
+                                                        PropertyFactory.iconPadding(0f),
+                                                        PropertyFactory.iconAnchor(Property.ICON_ANCHOR_CENTER),
+
+                                                        PropertyFactory.textOptional(false),
+                                                        PropertyFactory.iconOptional(false),
+                                                        PropertyFactory.textAllowOverlap(true),
+                                                        PropertyFactory.iconAllowOverlap(false),
+                                                        PropertyFactory.textIgnorePlacement(true),
+                                                        PropertyFactory.iconIgnorePlacement(false)
+                                                    )
+
+                                                textLayer.minZoom = 10f
+
+                                                style.addLayer(textLayer)
+                                            }
+
+                                            mapStyle = style
+                                        }
                                     }
                                 }
                             }
