@@ -1,30 +1,41 @@
 @file:Suppress("deprecation")
 
-package com.kaii.trainspotter.models.train_details
+package com.kaii.trainspotter.models
 
 import android.app.NotificationManager
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.TrainUpdateConnection
-import com.kaii.trainspotter.api.LocationDetails
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainPositionClient
+import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.datastore.Settings
+import com.kaii.trainspotter.domain.LocationDetails
 import com.kaii.trainspotter.helpers.ServerConstants
 import com.pushpal.jetlime.ItemsList
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.maplibre.android.geometry.LatLng
+import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface TrainDetailsMapState {
     object Loading : TrainDetailsMapState
@@ -37,26 +48,17 @@ sealed interface TrainDetailsMapState {
     ) : TrainDetailsMapState
 }
 
-class TrainDetailsViewModel(
-    context: Context,
-    private val apiKey: String
+@HiltViewModel
+class TrainDetailsViewModel @Inject constructor(
+    private val trafikverketClient: TrafikverketClient,
+    private val trainPositionClient: TrainPositionClient,
+    private val settings: Settings
 ) : ViewModel() {
-    private val _announcementsKeys = MutableStateFlow(emptyList<String>()) // so its sorted
     private val _announcements = MutableStateFlow(emptyMap<String, LocationDetails>())
     private var trainId = ""
-    private var currentCoords by mutableStateOf(LatLng())
-
-    private val trafikverketClient =
-        TrafikverketClient(
-            context = context,
-            apiKey = apiKey
-        )
-
-    private val trainPositionClient =
-        TrainPositionClient(
-            context = context,
-            apiKey = apiKey
-        )
+    private var currentCoords = LatLng()
+    private var apiKey: ApiKey = ApiKey.NotAvailable
+    private var listenJob: Job? = null
 
     private val _refreshing = MutableStateFlow(true)
     val isRefreshing = _refreshing.asStateFlow()
@@ -96,11 +98,31 @@ class TrainDetailsViewModel(
         initialValue = ItemsList(placeholderItems)
     )
 
-    private suspend fun fetchData(trainId: String) {
-        val new = trafikverketClient.getRouteDataForId(trainId = trainId)
+    init {
+        viewModelScope.launch {
+            settings.user.getApiKey().collect { apiKey = it }
+        }
+    }
 
-        _announcements.value = new
-        _announcementsKeys.value = new.keys.toList()
+    private suspend fun fetchData(trainId: String): Boolean {
+        try {
+            val new = trafikverketClient.getRouteDataForId(trainId = trainId)
+
+            if (this.trainId != trainId) return false
+
+            if (new.isNullOrEmpty()) {
+                Log.w(TrainDetailsViewModel::class.qualifiedName, "No route data for $trainId (null or empty), keeping previous")
+                return false
+            }
+
+            _announcements.value = new
+            return true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TrainDetailsViewModel::class.qualifiedName, "Failed to fetch route data for $trainId", e)
+            return false
+        }
     }
 
     private suspend fun getPositionInfo() {
@@ -112,7 +134,7 @@ class TrainDetailsViewModel(
             trainId = trainId
         ) { info ->
             val announcements = _announcements.value
-            val lastKey = _announcementsKeys.value.lastOrNull()
+            val lastKey = _announcements.value.keys.lastOrNull()
             val speed = if (announcements[lastKey]?.passed == true) 0 else info.speed
             val speedIsEstimate = info.speedIsEstimate
             val bearing = info.bearing
@@ -130,32 +152,44 @@ class TrainDetailsViewModel(
         }
     }
 
-    private suspend fun startForegroundService(
+    private suspend fun setupService(
         context: Context,
         connection: TrainUpdateConnection
     ) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val permGranted = notificationManager.areNotificationsEnabled()
+        if (!notificationManager.areNotificationsEnabled()) return
 
-        if (!permGranted) return
+        val key = withTimeoutOrNull(3.seconds) {
+            settings.user.getApiKey().first { it != ApiKey.NotAvailable }
+        }
 
-        connection.service?.stopListening()
+        if (key == null) {
+            Log.w(TrainDetailsViewModel::class.qualifiedName, "No API key available, skipping notification service")
+            return
+        }
 
+        var service = connection.service
         var tries = 0
-        do {
-            delay(1000)
+        while (service == null && tries < 20) {
+            delay(250.milliseconds)
+            service = connection.service
             tries += 1
-        } while (connection.service == null && tries < 10)
+        }
 
-        connection.service!!.setup(
-            apiKey = apiKey,
+        if (service == null) {
+            Log.w(TrainDetailsViewModel::class.qualifiedName, "Service never connected, skipping notification")
+            return
+        }
+
+        service.setup(
+            apiKey = key,
             trainId = trainId,
             initialTitle = _announcements.value.values.firstOrNull {
                 !it.passed
             }?.name ?: context.resources.getString(R.string.loading),
             initialSpeed = "0km/h"
         )
-        connection.service!!.startListening()
+        service.startListening()
     }
 
     fun startListening(
@@ -163,46 +197,58 @@ class TrainDetailsViewModel(
         trainId: String,
         connection: TrainUpdateConnection,
         onScroll: (index: Int) -> Unit
-    ) = viewModelScope.launch(Dispatchers.IO) {
-        this@TrainDetailsViewModel.trainId = trainId
+    ) {
+        if (this.trainId == trainId && listenJob?.isActive == true) return
 
-        fetchData(trainId = trainId)
-        _refreshing.value = false
+        listenJob?.cancel()
+        trainPositionClient.cancel()
 
-        val announcements = _announcements.value
-        if (announcements.isNotEmpty()) {
-            announcements.values.maxByOrNull { it.timeAtLocation ?: "" }?.let { passed ->
-                onScroll(announcements.values.indexOf(passed))
+        _announcements.value = emptyMap()
+        _mapState.value = TrainDetailsMapState.Loading
+
+        this.trainId = trainId
+        _refreshing.value = true
+
+        listenJob = viewModelScope.launch(Dispatchers.IO) {
+            var attempts = 0
+            while (isActive && !fetchData(trainId = trainId) && attempts < 5) {
+                attempts += 1
+                delay(2.seconds)
             }
-        }
+            _refreshing.value = false
 
-        launch(Dispatchers.IO) {
-            getPositionInfo()
-        }
+            val announcements = _announcements.value
+            if (announcements.isNotEmpty()) {
+                announcements.values.maxByOrNull { it.timeAtLocation ?: "" }?.let { passed ->
+                    onScroll(announcements.values.indexOf(passed))
+                }
+            }
 
-        launch {
-            startForegroundService(
-                context = context,
-                connection = connection
-            )
-        }
+            launch { getPositionInfo() }
+            launch { setupService(context = context, connection = connection) }
 
-        launch(Dispatchers.IO) {
-            while (this@TrainDetailsViewModel.trainId == trainId) {
+            while (isActive) {
+                delay(ServerConstants.UPDATE_TIME.milliseconds)
                 fetchData(trainId = trainId)
-                _refreshing.value = false
-
-                delay(ServerConstants.UPDATE_TIME)
             }
         }
     }
 
     fun forceRefresh() = viewModelScope.launch(Dispatchers.IO) {
         _refreshing.value = true
-        fetchData(trainId = trainId)
 
-        delay(ServerConstants.REFRESH_TIME)
-        _refreshing.value = false
+        try {
+            fetchData(trainId = trainId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Log.e(TrainDetailsViewModel::class.qualifiedName, "Failed to force a refresh. ${e.message}")
+        } finally {
+            withContext(NonCancellable) {
+                delay(ServerConstants.REFRESH_TIME.milliseconds)
+                _refreshing.value = false
+            }
+        }
     }
 
     fun getProductInfo() =
@@ -214,7 +260,6 @@ class TrainDetailsViewModel(
         _refreshing.value = false
         trainPositionClient.cancel()
         _announcements.value = emptyMap()
-        _announcementsKeys.value = emptyList()
 
         trainId = ""
         currentCoords = LatLng()

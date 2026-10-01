@@ -5,27 +5,29 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ComponentName
 import android.content.Intent
-import android.content.ServiceConnection
+import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import com.kaii.trainspotter.api.LocationDetails
+import androidx.core.app.ServiceCompat
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainPositionClient
+import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.domain.LocationDetails
 import com.kaii.trainspotter.helpers.ServerConstants
-import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "com.kaii.trainspotter.TrainUpdateService"
 
@@ -37,20 +39,35 @@ class TrainUpdateService : Service() {
         const val ACTION_HIDE_NOTIF = "com.kaii.trainspotter.hide_status_notification"
     }
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private lateinit var notificationManager: NotificationManager
-    private var running = false
     private var job: Job? = null
 
-    private lateinit var trafikverketClient: TrafikverketClient
+    @Volatile
+    private var running = false
+
+    @Volatile
+    private var trainId: String? = null
+
+    private var trafikverketClient: TrafikverketClient? = null
     private var trainPositionClient: TrainPositionClient? = null
 
-    private var trainId: String? = null
-    private var announcements = sortedMapOf<String, LocationDetails>()
+    @Volatile
+    private var announcements: Map<String, LocationDetails> = emptyMap()
+
     private val binder = TrainUpdateBinder()
 
+    @Volatile
     private var currentProgress = 0
+
+    @Volatile
     private var currentTitle = ""
+
+    @Volatile
     private var currentSpeed = ""
+
+    @Volatile
     private var speedIsEstimate = false
 
     inner class TrainUpdateBinder : Binder() {
@@ -62,45 +79,44 @@ class TrainUpdateService : Service() {
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
-    override fun onBind(p0: Intent?): IBinder {
-        return binder
-    }
+    override fun onBind(p0: Intent?): IBinder = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: return START_STICKY
+        val action = intent?.action ?: return START_NOT_STICKY
 
         when (action) {
-            ACTION_HIDE_NOTIF -> {
-                stopListening()
-                return START_NOT_STICKY
-            }
+            ACTION_HIDE_NOTIF -> stopListening()
         }
 
-        return START_STICKY
+        return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        running = false
+        trainPositionClient?.cancel()
+        scope.cancel()
+        super.onDestroy()
     }
 
     fun setup(
-        apiKey: String,
+        apiKey: ApiKey,
         trainId: String,
         initialTitle: String,
         initialSpeed: String
     ) {
+        running = false
+        job?.cancel()
+        trainPositionClient?.cancel()
+
         this.trainId = trainId
         this.currentTitle = initialTitle
         this.currentSpeed = initialSpeed
+        this.currentProgress = 0
         this.speedIsEstimate = false
+        this.announcements = emptyMap()
 
-        this.trafikverketClient =
-            TrafikverketClient(
-                context = applicationContext,
-                apiKey = apiKey
-            )
-
-        this.trainPositionClient =
-            TrainPositionClient(
-                context = applicationContext,
-                apiKey = apiKey
-            )
+        this.trafikverketClient = TrafikverketClient(apiKey = apiKey)
+        this.trainPositionClient = TrainPositionClient(apiKey = apiKey)
     }
 
     fun stopListening() {
@@ -111,147 +127,185 @@ class TrainUpdateService : Service() {
 
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
-
         notificationManager.cancel(NOTIFICATION_ID)
-        notificationManager.cancelAll()
-        notificationManager.deleteNotificationChannel(CHANNEL_ID)
 
         Log.d(TAG, "Service canceled.")
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     fun startListening() {
-        this.running = true
+        val id = trainId ?: return
+        val client = trafikverketClient ?: return
 
-        if (notificationManager.notificationChannels.none { it.id == CHANNEL_ID }) {
-            val channel = NotificationChannel(CHANNEL_ID, "Train Spotter Channel", NotificationManager.IMPORTANCE_HIGH)
-            channel.description = "Handles notification updates"
+        running = true
 
-            notificationManager.createNotificationChannel(channel)
-        }
+        val channel = NotificationChannel(CHANNEL_ID, "Train Spotter Channel", NotificationManager.IMPORTANCE_HIGH)
+        channel.description = "Handles notification updates"
+        notificationManager.createNotificationChannel(channel)
 
         val notification = buildNotification(
+            trainId = id,
             progress = 0,
             contentTitle = currentTitle,
             speed = currentSpeed,
             speedIsEstimate = speedIsEstimate
         )
 
-        startForeground(NOTIFICATION_ID, notification)
-        notificationManager.notify(NOTIFICATION_ID, notification)
-
-        job?.cancel()
-        job = GlobalScope.launch(Dispatchers.IO) {
-            coroutineScope {
-                fetchStopData()
-                fetchPositionData()
-
-                while (running) {
-                    fetchStopData()
-
-                    delay(ServerConstants.UPDATE_TIME)
-                }
+        ServiceCompat.startForeground(
+            this,
+            NOTIFICATION_ID,
+            notification,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            } else {
+                0
             }
-        }
-    }
-
-    private suspend fun fetchStopData() {
-        if (!running) return
-
-        val new = trafikverketClient.getRouteDataForId(trainId = trainId!!)
-        announcements = new
-
-        if (!running) return
-
-        val position = announcements.values.firstOrNull { value ->
-            !value.passed
-        } ?: announcements.values.lastOrNull()
-
-        if (position == announcements.values.lastOrNull() && position?.passed == true && !currentSpeed.startsWith("0km/h")) {
-            this.currentSpeed = applicationContext.resources.getString(R.string.stopped)
-            this.currentProgress = announcements.keys.size
-            this.currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
-        } else {
-            val delay =
-                if (position?.delay != null && position.delay.isNotBlank()) {
-                    "with ${position.delay} delay"
-                } else ""
-
-            this.currentTitle = "${position?.name ?: "Unknown"} $delay"
-        }
-
-        val updatedNotification = buildNotification(
-            progress = this.currentProgress,
-            contentTitle = this.currentTitle,
-            speed = this.currentSpeed,
-            speedIsEstimate = this.speedIsEstimate
         )
 
-        notificationManager.notify(NOTIFICATION_ID, updatedNotification)
-    }
+        job?.cancel()
+        job = scope.launch {
+            try {
+                fetchStopData(id, client)
+                launch { fetchPositionData(id) }
 
-    private suspend fun fetchPositionData() = withContext(Dispatchers.IO) {
-        if (trainPositionClient?.getCurrentTrainId() == trainId || announcements.isEmpty() || !running) return@withContext
-
-        trainPositionClient?.getStreamingInfo(
-            trainId = trainId!!
-        ) { info ->
-            val lastKey = announcements.keys.lastOrNull()
-            val speed = if (announcements[lastKey]?.passed == true) 0 else info.speed
-            val speedIsEstimate = info.speedIsEstimate
-
-            val key = announcements.keys.firstOrNull { key ->
-                announcements[key]?.passed == false
-            } ?: announcements.keys.last()
-
-            val position = announcements[key]
-
-            if (position == announcements.values.lastOrNull() && position?.passed == true && !currentSpeed.startsWith("0km/h")) {
-                this@TrainUpdateService.currentSpeed = applicationContext.resources.getString(R.string.stopped)
-                this@TrainUpdateService.currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
-                this@TrainUpdateService.currentProgress = announcements.keys.size
-            } else {
-                val delay =
-                    if (position?.delay != null && position.delay.isNotBlank()) {
-                        "with ${position.delay} delay"
-                    } else ""
-
-                this@TrainUpdateService.currentTitle = "${position?.name ?: "Unknown"} $delay"
-                this@TrainUpdateService.currentSpeed = "${speed}km/h" + if (speedIsEstimate) "*" else ""
-                this@TrainUpdateService.currentProgress = announcements.keys.indexOf(key)
-                this@TrainUpdateService.speedIsEstimate = speedIsEstimate
-            }
-
-
-            if (running) {
-                val updatedNotification = buildNotification(
-                    progress = this@TrainUpdateService.currentProgress,
-                    contentTitle = this@TrainUpdateService.currentTitle,
-                    speed = this@TrainUpdateService.currentSpeed,
-                    speedIsEstimate = this@TrainUpdateService.speedIsEstimate
-                )
-
-                notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+                while (isActive && running) {
+                    delay(ServerConstants.UPDATE_TIME.milliseconds)
+                    fetchStopData(id, client)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Update loop failed", e)
             }
         }
+    }
+
+    private suspend fun fetchStopData(id: String, client: TrafikverketClient) {
+        if (!running) return
+
+        try {
+            val new = client.getRouteDataForId(trainId = id)
+            if (!running || trainId != id) return
+
+            if (new.isNullOrEmpty()) {
+                Log.w(TAG, "No route data for $id (null or empty), keeping previous")
+                return
+            }
+
+            announcements = new
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch stop data", e)
+            return
+        }
+
+        val values = announcements.values
+        val position = values.firstOrNull { !it.passed } ?: values.lastOrNull()
+
+        if (position == values.lastOrNull() && position?.passed == true && !currentSpeed.startsWith("0km/h")) {
+            currentSpeed = applicationContext.resources.getString(R.string.stopped)
+            currentProgress = announcements.keys.size
+            currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
+        } else {
+            currentTitle = "${position?.name ?: "Unknown"} ${delayText(position)}"
+        }
+
+        postNotification(id)
+    }
+
+    private suspend fun fetchPositionData(id: String) {
+        val client = trainPositionClient ?: return
+        if (client.getCurrentTrainId() == id || announcements.isEmpty() || !running) return
+
+        try {
+            client.getStreamingInfo(trainId = id) { info ->
+                if (!running || trainId != id) return@getStreamingInfo
+
+                val current = announcements
+                if (current.isEmpty()) return@getStreamingInfo
+
+                val speed = if (current.values.lastOrNull()?.passed == true) 0 else info.speed
+                val estimate = info.speedIsEstimate
+
+                val key = current.keys.firstOrNull { current[it]?.passed == false } ?: current.keys.last()
+                val position = current[key]
+
+                if (position == current.values.lastOrNull() && position?.passed == true && !currentSpeed.startsWith("0km/h")) {
+                    currentSpeed = applicationContext.resources.getString(R.string.stopped)
+                    currentTitle = applicationContext.resources.getString(R.string.reached_location, position.name)
+                    currentProgress = current.keys.size
+                } else {
+                    currentTitle = "${position?.name ?: "Unknown"} ${delayText(position)}"
+                    currentSpeed = "${speed}km/h"
+                    currentProgress = current.keys.indexOf(key)
+                    speedIsEstimate = estimate
+                }
+
+                postNotification(id)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Position stream failed", e)
+        }
+    }
+
+    private fun delayText(position: LocationDetails?): String =
+        if (position?.delay != null && position.delay.isNotBlank()) "with ${position.delay} delay" else ""
+
+    private fun postNotification(id: String) {
+        if (!running || trainId != id) return
+
+        notificationManager.notify(
+            NOTIFICATION_ID,
+            buildNotification(
+                trainId = id,
+                progress = currentProgress,
+                contentTitle = currentTitle,
+                speed = currentSpeed,
+                speedIsEstimate = speedIsEstimate
+            )
+        )
     }
 
     private fun buildNotification(
+        trainId: String,
         progress: Int,
         contentTitle: String,
         speed: String,
         speedIsEstimate: Boolean
     ): Notification {
+        val hideIntent = PendingIntent.getForegroundService(
+            applicationContext,
+            100,
+            Intent(applicationContext, TrainUpdateService::class.java).apply {
+                action = ACTION_HIDE_NOTIF
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val openAppIntent = packageManager.getLaunchIntentForPackage(packageName)?.let {
+            PendingIntent.getActivity(
+                applicationContext,
+                101,
+                it,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        }
+
+        val speedText = if (speedIsEstimate) "${speed}*" else speed
+
         val notification =
             Notification.Builder(applicationContext, CHANNEL_ID)
-                .setSubText("Train: ${trainId!!}")
+                .setSubText("Train: $trainId")
                 .setShowWhen(false)
                 .setContentTitle(contentTitle)
-                .setContentText(speed)
+                .setContentText(speedText)
+                .setContentIntent(openAppIntent)
                 .setSmallIcon(R.drawable.train_filled_48px)
                 .apply {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-                        setShortCriticalText("${speed}km/h" + if (speedIsEstimate) "*" else "")
+                        setShortCriticalText(speedText)
                     }
                 }
                 .setOngoing(true)
@@ -260,16 +314,11 @@ class TrainUpdateService : Service() {
                     Notification.Action.Builder(
                         Icon.createWithResource(applicationContext, R.drawable.close),
                         "Hide",
-                        PendingIntent.getForegroundService(
-                            applicationContext,
-                            100,
-                            Intent(applicationContext, TrainUpdateService::class.java).apply {
-                                action = ACTION_HIDE_NOTIF
-                            },
-                            PendingIntent.FLAG_IMMUTABLE
-                        )
+                        hideIntent
                     ).build()
                 )
+
+        val stopCount = announcements.keys.size
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             notification.style =
@@ -277,37 +326,16 @@ class TrainUpdateService : Service() {
                     this.progress = progress
                     this.isStyledByProgress = true
 
-                    if (announcements.keys.size > 2) {
-                        addProgressSegment(
-                            Notification.ProgressStyle.Segment(1)
-                        )
-                        addProgressSegment(
-                            Notification.ProgressStyle.Segment(announcements.keys.size - 2)
-                        )
-                        addProgressSegment(
-                            Notification.ProgressStyle.Segment(1)
-                        )
+                    if (stopCount > 2) {
+                        addProgressSegment(Notification.ProgressStyle.Segment(1))
+                        addProgressSegment(Notification.ProgressStyle.Segment(stopCount - 2))
+                        addProgressSegment(Notification.ProgressStyle.Segment(1))
                     }
                 }
         } else {
-            notification.setProgress(announcements.keys.size, progress, false)
+            notification.setProgress(stopCount, progress, false)
         }
 
         return notification.build()
-    }
-}
-
-class TrainUpdateConnection : ServiceConnection {
-    var service: TrainUpdateService? = null
-
-    override fun onServiceConnected(className: ComponentName, service: IBinder) {
-        val binder = service as TrainUpdateService.TrainUpdateBinder
-        this.service = binder.service
-        Log.d(TAG, "Service was connected, ${this.service!!::class.simpleName}")
-    }
-
-    override fun onServiceDisconnected(className: ComponentName) {
-        this.service = null
-        Log.d(TAG, "Service was disconnected")
     }
 }

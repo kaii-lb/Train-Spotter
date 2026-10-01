@@ -126,7 +126,7 @@ fun ApiKeyPreferenceRow(
         var placeholderKey by remember(initialKey) {
             mutableStateOf(
                 if (isRealtimeKey) (initialKey as? ApiKey.Available)?.realtimeKey ?: ""
-                else (initialKey as? ApiKey.Available)?.trafikVerketKey ?: ""
+                else (initialKey as? ApiKey.Available)?.trafikverketKey ?: ""
             )
         }
 

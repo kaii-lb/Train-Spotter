@@ -28,35 +28,72 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kaii.trainspotter.LocalMainViewModel
+import androidx.navigation.NavController
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.rememberSearchManager
 import com.kaii.trainspotter.compose.widgets.PreferencesSeparatorText
 import com.kaii.trainspotter.compose.widgets.SearchField
 import com.kaii.trainspotter.compose.widgets.SearchItem
 import com.kaii.trainspotter.compose.widgets.SearchItemPositon
-import com.kaii.trainspotter.compose.widgets.SearchMode
 import com.kaii.trainspotter.compose.widgets.SearchShimmerLoadingItem
-import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.domain.SearchMode
+import com.kaii.trainspotter.domain.SearchResult
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.helpers.rememberResultInfoFetcher
+import com.kaii.trainspotter.models.SearchViewModel
 
 @Composable
 fun SearchScreen(
-    apiKey: ApiKey.Available,
+    viewModel: SearchViewModel,
     modifier: Modifier = Modifier
 ) {
+    val results by viewModel.searchResults.collectAsStateWithLifecycle()
+    val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
+    val searchMode by viewModel.searchMode.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+
+    SearchScreen(
+        results = { results },
+        isSearching = { isSearching },
+        searchMode = { searchMode },
+        history = { history },
+        modifier = modifier,
+        navController = LocalNavController.current,
+        onAddToHistory = viewModel::addToHistory,
+        onSearchModeChange = viewModel::changeSearchMode,
+        onSearch = viewModel::search,
+        onClear = viewModel::clear
+    )
+}
+
+@Composable
+private fun SearchScreen(
+    results: () -> List<SearchResult>,
+    isSearching: () -> Boolean,
+    searchMode: () -> SearchMode,
+    history: () -> List<SearchResult>,
+    navController: NavController,
+    modifier: Modifier = Modifier,
+    onAddToHistory: (item: SearchResult) -> Unit,
+    onSearchModeChange: (mode: SearchMode) -> Unit,
+    onSearch: (query: String) -> Unit,
+    onClear: () -> Unit
+) {
+    val results by rememberUpdatedState(results())
+    val history by rememberUpdatedState(history())
+    val infoFetcher = rememberResultInfoFetcher()
+
     Scaffold(
         topBar = {
             TopBar()
@@ -69,37 +106,22 @@ fun SearchScreen(
                 .padding(innerPadding)
                 .fillMaxWidth()
         ) {
-            val searchManager = rememberSearchManager(apiKey = apiKey)
-
-            val mainViewModel = LocalMainViewModel.current
-            val navController = LocalNavController.current
-            val resources = LocalResources.current
             val listState = rememberLazyListState()
-
-            var searchedText by remember { mutableStateOf("") }
-            val searchMode by mainViewModel.searchMode.collectAsStateWithLifecycle()
-
-            val history by mainViewModel.settings.history.getSearchHistory().collectAsStateWithLifecycle(initialValue = emptyList())
+            var searchedText by rememberSaveable { mutableStateOf("") }
 
             SearchField(
                 text = searchedText,
                 searchMode = searchMode,
-                isError = searchManager.results.isEmpty(),
+                isError = results.isEmpty(),
                 setText = {
                     searchedText = it
                 },
-                setSearchMode = { mode ->
-                    mainViewModel.searchMode.value = mode
-                },
+                setSearchMode = onSearchModeChange,
                 onSearch = {
                     if (searchedText.isBlank()) {
-                        searchManager.clearResults()
+                        onClear()
                     } else {
-                        searchManager.search(
-                            name = searchedText,
-                            searchMode = searchMode,
-                            resources = resources
-                        )
+                        onSearch(searchedText)
                         listState.requestScrollToItem(0)
                     }
                 }
@@ -111,18 +133,17 @@ fun SearchScreen(
                 state = listState
             ) {
                 items(
-                    count = searchManager.results.size,
+                    count = results.size,
                     key = { index ->
-                        val snapshot = searchManager.results
-                        if (index in 0..snapshot.size - 1) {
-                            snapshot[index].id
+                        if (index in results.indices) {
+                            results[index].id
                         } else {
                             index // fallback, shouldn't ever be here
                         }
                     }
                 ) { index ->
                     AnimatedContent(
-                        targetState = searchManager.isSearching,
+                        targetState = isSearching(),
                         transitionSpec = {
                             (fadeIn(animationSpec = tween(durationMillis = 300)) + expandVertically(animationSpec = tween(durationMillis = 600)))
                                 .togetherWith(
@@ -138,38 +159,36 @@ fun SearchScreen(
                                 position =
                                     when (index) {
                                         0 -> SearchItemPositon.Top
-                                        searchManager.results.size - 1 -> SearchItemPositon.Bottom
+                                        results().size - 1 -> SearchItemPositon.Bottom
                                         else -> SearchItemPositon.Middle
                                     }
                             )
                         } else {
-                            val item = searchManager.results.getOrNull(index)
-
-                            if (item == null) return@AnimatedContent
+                            val item = results.getOrNull(index) ?: return@AnimatedContent
 
                             if (item.mode == SearchMode.Station) {
                                 SearchItem(
-                                    name = item.name,
-                                    description = item.description,
+                                    name = infoFetcher.getFromName(item.name),
+                                    description = infoFetcher.getFromDescription(item.description),
                                     hasError = item.hasError,
                                     position =
-                                        if (searchManager.results.size == 1) SearchItemPositon.Single
+                                        if (results.size == 1) SearchItemPositon.Single
                                         else if (index == 0) SearchItemPositon.Top
-                                        else if (index == searchManager.results.size - 1) SearchItemPositon.Bottom
+                                        else if (index == results.size - 1) SearchItemPositon.Bottom
                                         else SearchItemPositon.Middle
                                 ) {
-                                    mainViewModel.settings.history.addToSearchHistory(item)
+                                    onAddToHistory(item)
                                     navController.navigate(
                                         route = Screens.TimeTable(
-                                            stopName = item.name,
+                                            stopName = infoFetcher.getFromName(item.name),
                                             stopId = item.id
                                         )
                                     )
                                 }
                             } else {
                                 SearchItem(
-                                    name = item.name,
-                                    description = item.description,
+                                    name = infoFetcher.getFromName(item.name),
+                                    description = infoFetcher.getFromDescription(item.description),
                                     position = SearchItemPositon.Single,
                                     hasError = item.hasError
                                 ) {
@@ -184,8 +203,8 @@ fun SearchScreen(
                     }
                 }
 
-                if (searchManager.results.isEmpty() && !searchManager.isSearching) {
-                    if (searchMode == SearchMode.Station && !history.isEmpty()) {
+                if (results.isEmpty() && !isSearching()) {
+                    if (searchMode() == SearchMode.Station && !history.isEmpty()) {
                         item {
                             PreferencesSeparatorText(
                                 text = stringResource(id = R.string.history),
@@ -202,8 +221,8 @@ fun SearchScreen(
                             items = history
                         ) { index, item ->
                             SearchItem(
-                                name = item.name,
-                                description = item.description,
+                                name = infoFetcher.getFromName(item.name),
+                                description = infoFetcher.getFromDescription(item.description),
                                 hasError = item.hasError,
                                 position =
                                     if (history.size == 1) SearchItemPositon.Single
@@ -211,10 +230,10 @@ fun SearchScreen(
                                     else if (index == history.size - 1) SearchItemPositon.Bottom
                                     else SearchItemPositon.Middle
                             ) {
-                                mainViewModel.settings.history.addToSearchHistory(item)
+                                onAddToHistory(item)
                                 navController.navigate(
                                     route = Screens.TimeTable(
-                                        stopName = item.name,
+                                        stopName = infoFetcher.getFromName(item.name),
                                         stopId = item.id
                                     )
                                 )
@@ -235,7 +254,7 @@ fun SearchScreen(
                                 Icon(
                                     painter = painterResource(
                                         id =
-                                            if (searchMode == SearchMode.Station) R.drawable.wrong_location_filled
+                                            if (searchMode() == SearchMode.Station) R.drawable.wrong_location_filled
                                             else R.drawable.train_not_found
                                     ),
                                     contentDescription = "No such location found",

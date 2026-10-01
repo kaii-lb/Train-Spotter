@@ -42,8 +42,8 @@ import androidx.core.net.toUri
 import com.kaii.lavender.snackbars.LavenderSnackbarController
 import com.kaii.lavender.snackbars.LavenderSnackbarEvents
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.Information
-import com.kaii.trainspotter.api.LocationDetails
+import com.kaii.trainspotter.domain.Information
+import com.kaii.trainspotter.domain.LocationDetails
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import kotlinx.coroutines.launch

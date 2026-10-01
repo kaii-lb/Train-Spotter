@@ -2,9 +2,10 @@
 
 package com.kaii.trainspotter.compose.screens
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -42,7 +43,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,26 +69,26 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavDestination.Companion.hasRoute
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.TrainUpdateConnection
 import com.kaii.trainspotter.TrainUpdateService
-import com.kaii.trainspotter.api.Information
-import com.kaii.trainspotter.api.TrainInformation
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.compose.widgets.shimmerEffect
-import com.kaii.trainspotter.helpers.OnBackPressedEffect
+import com.kaii.trainspotter.domain.Information
+import com.kaii.trainspotter.domain.TrainInformation
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
-import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.SpeedPointDisplay
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.tintDrawable
-import com.kaii.trainspotter.models.train_details.TrainDetailsMapState
-import com.kaii.trainspotter.models.train_details.TrainDetailsViewModel
+import com.kaii.trainspotter.models.TrainDetailsMapState
+import com.kaii.trainspotter.models.TrainDetailsViewModel
 import com.kaii.trainspotter.ui.theme.MapStyleJson
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
@@ -107,6 +107,14 @@ import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 @Composable
 fun TrainDetailsScreen(
@@ -117,31 +125,43 @@ fun TrainDetailsScreen(
     val context = LocalContext.current
     val navController = LocalNavController.current
     val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     val trainUpdateConnection = remember { TrainUpdateConnection() }
-    DisposableEffect(Unit) {
-        context.startForegroundService(
-            Intent(context, TrainUpdateService::class.java).also { intent ->
-                context.bindService(intent, trainUpdateConnection, Context.BIND_AUTO_CREATE)
+    DisposableEffect(trainId) {
+        val serviceIntent = Intent(context, TrainUpdateService::class.java)
+        context.startService(serviceIntent)
+        context.bindService(serviceIntent, trainUpdateConnection, Context.BIND_AUTO_CREATE)
+
+        viewModel.startListening(
+            context = context.applicationContext,
+            trainId = trainId,
+            connection = trainUpdateConnection,
+            onScroll = { index ->
+                coroutineScope.launch {
+                    listState.animateScrollToItem(index = index)
+                }
             }
         )
 
         onDispose {
-            context.startService(
-                Intent(context, TrainUpdateService::class.java).apply {
-                    action = TrainUpdateService.ACTION_HIDE_NOTIF
-                }
-            )
+            val changingConfig = context.findActivity()?.isChangingConfigurations == true
+
+            if (!changingConfig) {
+                trainUpdateConnection.service?.stopListening()
+                viewModel.cancel()
+            }
+
             context.unbindService(trainUpdateConnection)
+
+            if (!changingConfig) {
+                context.stopService(serviceIntent)
+            }
         }
     }
 
-    BackHandler {
-        viewModel.cancel()
-        navController.popBackStack()
-    }
-
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
+    var mapStyle by remember { mutableStateOf<Style?>(null) }
     var showingMap by remember { mutableStateOf(false) }
     val mapState by viewModel.mapState.collectAsStateWithLifecycle()
 
@@ -160,6 +180,104 @@ fun TrainDetailsScreen(
             )
     }
 
+    val mapView = remember(context) { MapView(context).apply { onCreate(null) } }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, mapView) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> mapView.onStart()
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_STOP -> mapView.onStop()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+
+            map = null
+            mapStyle = null
+            currentMarker = null
+
+            val state = lifecycleOwner.lifecycle.currentState
+            if (state.isAtLeast(Lifecycle.State.RESUMED)) mapView.onPause()
+            if (state.isAtLeast(Lifecycle.State.STARTED)) mapView.onStop()
+            mapView.onDestroy()
+        }
+    }
+
+    LaunchedEffect(mapView) {
+        mapView.getMapAsync { mapLibreMap ->
+            map = mapLibreMap
+
+            mapLibreMap.addOnMapClickListener {
+                mapHeight = if (mapHeight == maxHeight) {
+                    (mapWidth / (16f / 9f)).toInt()
+                } else {
+                    maxHeight
+                }
+
+                false
+            }
+
+            mapLibreMap.setStyle(
+                Style.Builder().fromJson(MapStyleJson)
+            ) { style ->
+                if (style.getSource("speed-source") == null) {
+                    setupSpeedLayer(context, style)
+                    mapStyle = style
+                }
+            }
+        }
+    }
+
+    val speedPointDisplay = remember(context) { SpeedPointDisplay(context) }
+
+    DisposableEffect(speedPointDisplay) {
+        onDispose { speedPointDisplay.release() }
+    }
+
+    LaunchedEffect(map, mapStyle) {
+        val currentMap = map
+        if (currentMap != null && mapStyle != null) {
+            speedPointDisplay.fetchSpeedsForBounds(mapLibreMap = currentMap)
+        }
+    }
+
+    LaunchedEffect(mapState, map) {
+        val state = mapState as? TrainDetailsMapState.Loaded ?: return@LaunchedEffect
+        val currentMap = map ?: return@LaunchedEffect
+
+        if (currentMarker == null) {
+            currentMarker = currentMap.addMarker(
+                MarkerOptions()
+                    .position(state.coords)
+                    .title("Current train location")
+                    .snippet("Speed: ${state.speed}km/h")
+                    .icon(mapIcon)
+            )
+        } else {
+            currentMarker?.position = state.coords
+            currentMarker?.snippet = "Speed: ${state.speed}km/h"
+        }
+
+        if (showingMap) {
+            currentMap.animateCamera(CameraUpdateFactory.newLatLngZoom(state.coords, 14.0))
+        }
+    }
+
+    LaunchedEffect(showingMap) {
+        if (!showingMap) return@LaunchedEffect
+
+        delay(500.milliseconds)
+
+        val state = mapState as? TrainDetailsMapState.Loaded ?: return@LaunchedEffect
+        map?.animateCamera(CameraUpdateFactory.newLatLngZoom(state.coords, 14.0))
+    }
+
     Scaffold(
         topBar = {
             TopBar(
@@ -169,84 +287,14 @@ fun TrainDetailsScreen(
                 showingMap = showingMap,
                 showMap = {
                     showingMap = it
-
-                    mapHeight = if (showingMap) (mapWidth / (16f / 9f)).toInt() else 0
-
-                    coroutineScope.launch {
-                        delay(800)
-
-                        if (mapState is TrainDetailsMapState.Loaded) {
-                            val state = mapState as TrainDetailsMapState.Loaded
-
-                            if (currentMarker == null) {
-                                val markerOptions = MarkerOptions()
-                                    .position(state.coords)
-                                    .title("Current train location")
-                                    .snippet("Speed: ${state.speed}km/h")
-                                    .icon(mapIcon)
-
-                                currentMarker = map?.addMarker(markerOptions)
-                            } else {
-                                currentMarker?.position = state.coords
-                                currentMarker?.snippet = "Speed: ${state.speed}km/h"
-                            }
-
-                            map?.animateCamera(
-                                CameraUpdateFactory
-                                    .newLatLngZoom(state.coords, 14.0)
-                            )
-                        }
-                    }
+                    mapHeight = if (it) (mapWidth / (16f / 9f)).toInt() else 0
                 },
-                onBackClick = {
-                    viewModel.cancel()
-                }
+                onBackClick = { navController.popBackStack() }
             )
         },
         modifier = modifier
     ) { innerPadding ->
-        val listState = rememberLazyListState()
         val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-
-        LaunchedEffect(Unit) {
-            viewModel.startListening(
-                context = context,
-                trainId = trainId,
-                connection = trainUpdateConnection,
-                onScroll = { index ->
-                    coroutineScope.launch {
-                        listState.animateScrollToItem(index = index)
-                    }
-                }
-            )
-        }
-
-        LaunchedEffect(mapState) {
-            if (mapState is TrainDetailsMapState.Loaded) {
-                val state = mapState as TrainDetailsMapState.Loaded
-
-                if (currentMarker == null) {
-                    val markerOptions = MarkerOptions()
-                        .position(state.coords)
-                        .title("Current train location")
-                        .snippet("Speed: ${state.speed}km/h")
-                        .icon(mapIcon)
-
-                    currentMarker = map?.addMarker(markerOptions)
-                } else {
-                    currentMarker?.position = state.coords
-                    currentMarker?.snippet = "Speed: ${state.speed}km/h"
-                }
-
-                map?.animateCamera(
-                    CameraUpdateFactory
-                        .newLatLngZoom(
-                            latLng = state.coords,
-                            zoom = 14.0
-                        )
-                )
-            }
-        }
 
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -343,137 +391,15 @@ fun TrainDetailsScreen(
                         .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_LARGE))
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 ) {
-                    val speedPointDisplay = remember(context) {
-                        SpeedPointDisplay(context)
-                    }
-
-                    var mapStyle by remember { mutableStateOf<Style?>(null) }
-                    LaunchedEffect(map, mapStyle, showingMap) {
-                        map?.let {
-                            coroutineScope.launch {
-                                speedPointDisplay.fetchSpeedsForBounds(
-                                    mapLibreMap = it
-                                )
-                            }
-                        }
-                    }
-
-                    OnBackPressedEffect {
-                        if (!it.hasRoute(Screens.TrainDetails::class)) {
-                            speedPointDisplay.release()
-                        }
-                    }
-
                     AndroidView(
-                        factory = { context ->
-                            MapView(context).apply {
-                                onCreate(null)
-                                getMapAsync { mapLibreMap ->
-                                    map = mapLibreMap
-
-                                    mapLibreMap.addOnMapClickListener {
-                                        mapHeight = if (mapHeight == maxHeight) {
-                                            (mapWidth / (16f / 9f)).toInt()
-                                        } else {
-                                            maxHeight
-                                        }
-
-                                        false
-                                    }
-
-                                    mapLibreMap.setStyle(
-                                        Style.Builder()
-                                            .fromJson(MapStyleJson)
-                                    ) { style ->
-                                        if (style.getSource("speed-source") == null) {
-                                            val sourceOptions = GeoJsonOptions()
-                                                .withCluster(true)
-                                                .withClusterRadius(10)
-                                                .withClusterMaxZoom(8)
-                                                .withMinZoom(2)
-                                                .withClusterProperty( // TODO: not working, fix
-                                                    "cluster_speed",
-                                                    Expression.min(
-                                                        Expression.accumulated(),
-                                                        Expression.get("speed")
-                                                    ),
-                                                    Expression.get("speed")
-                                                )
-
-                                            val source = GeoJsonSource("speed-source", sourceOptions)
-                                            style.addSource(source)
-
-                                            ContextCompat.getDrawable(
-                                                context,
-                                                R.drawable.circle
-                                            )?.let {
-                                                style.addImage("bubble-icon", it)
-
-                                                val speedDisplay = Expression.coalesce(
-                                                    Expression.get("cluster_speed"),
-                                                    Expression.get("speed"),
-                                                    Expression.literal("?")
-                                                )
-
-                                                val textLayer = SymbolLayer("speed-text-layer", "speed-source")
-                                                    .withProperties(
-                                                        PropertyFactory.textField(speedDisplay),
-
-                                                        PropertyFactory.textFont(
-                                                            arrayOf(
-                                                                "Open Sans Regular",
-                                                                "Arial Unicode MS Regular"
-                                                            )
-                                                        ),
-
-                                                        PropertyFactory.textSize(
-                                                            Expression.step(
-                                                                Expression.length(speedDisplay),
-                                                                14f,
-                                                                Expression.stop(2, 14f),
-                                                                Expression.stop(3, 12f)
-                                                            )
-                                                        ),
-
-                                                        PropertyFactory.textColor(Color.Black.toArgb()),
-                                                        PropertyFactory.textAnchor(Property.TEXT_ANCHOR_CENTER),
-                                                        PropertyFactory.textPadding(0f),
-
-                                                        PropertyFactory.iconImage("bubble-icon"),
-                                                        PropertyFactory.iconSize(1.3f),
-                                                        PropertyFactory.iconPadding(0f),
-                                                        PropertyFactory.iconAnchor(Property.ICON_ANCHOR_CENTER),
-
-                                                        PropertyFactory.textOptional(false),
-                                                        PropertyFactory.iconOptional(false),
-                                                        PropertyFactory.textAllowOverlap(true),
-                                                        PropertyFactory.iconAllowOverlap(false),
-                                                        PropertyFactory.textIgnorePlacement(true),
-                                                        PropertyFactory.iconIgnorePlacement(false)
-                                                    )
-
-                                                textLayer.minZoom = 10f
-
-                                                style.addLayer(textLayer)
-                                            }
-
-                                            mapStyle = style
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        onRelease = {
-                            it.onDestroy()
-                        }
+                        factory = { mapView }
                     )
 
                     var showingShimmer by remember { mutableStateOf(true) }
                     LaunchedEffect(showingMap) {
-                        // show shimmer only on first showing the map
                         if (showingMap) showingShimmer = true
 
-                        delay(1000)
+                        delay(1.seconds)
                         showingShimmer = false
                     }
 
@@ -496,6 +422,65 @@ fun TrainDetailsScreen(
     }
 }
 
+private fun setupSpeedLayer(context: Context, style: Style) {
+    val sourceOptions = GeoJsonOptions()
+        .withCluster(true)
+        .withClusterRadius(10)
+        .withClusterMaxZoom(8)
+        .withMinZoom(2)
+        .withClusterProperty( // TODO: not working, fix
+            "cluster_speed",
+            Expression.min(
+                Expression.accumulated(),
+                Expression.get("speed")
+            ),
+            Expression.get("speed")
+        )
+
+    style.addSource(GeoJsonSource("speed-source", sourceOptions))
+
+    val drawable = ContextCompat.getDrawable(context, R.drawable.circle) ?: return
+    style.addImage("bubble-icon", drawable)
+
+    val speedDisplay = Expression.coalesce(
+        Expression.get("cluster_speed"),
+        Expression.get("speed"),
+        Expression.literal("?")
+    )
+
+    val textLayer = SymbolLayer("speed-text-layer", "speed-source")
+        .withProperties(
+            PropertyFactory.textField(speedDisplay),
+            PropertyFactory.textFont(arrayOf("Open Sans Regular", "Arial Unicode MS Regular")),
+            PropertyFactory.textSize(
+                Expression.step(
+                    Expression.length(speedDisplay),
+                    14f,
+                    Expression.stop(2, 14f),
+                    Expression.stop(3, 12f)
+                )
+            ),
+            PropertyFactory.textColor(Color.Black.toArgb()),
+            PropertyFactory.textAnchor(Property.TEXT_ANCHOR_CENTER),
+            PropertyFactory.textPadding(0f),
+
+            PropertyFactory.iconImage("bubble-icon"),
+            PropertyFactory.iconSize(1.3f),
+            PropertyFactory.iconPadding(0f),
+            PropertyFactory.iconAnchor(Property.ICON_ANCHOR_CENTER),
+
+            PropertyFactory.textOptional(false),
+            PropertyFactory.iconOptional(false),
+            PropertyFactory.textAllowOverlap(true),
+            PropertyFactory.iconAllowOverlap(false),
+            PropertyFactory.textIgnorePlacement(true),
+            PropertyFactory.iconIgnorePlacement(false)
+        )
+
+    textLayer.minZoom = 10f
+    style.addLayer(textLayer)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(
@@ -507,30 +492,19 @@ private fun TopBar(
     showMap: (Boolean) -> Unit,
     onBackClick: () -> Unit
 ) {
-    val navController = LocalNavController.current
-
     val animatedSpeed by animateIntAsState(
         targetValue = (mapState as? TrainDetailsMapState.Loaded)?.speed ?: -1,
-        animationSpec = tween(
-            durationMillis = 800
-        )
+        animationSpec = tween(durationMillis = 800)
     )
 
     val animatedBearing by animateIntAsState(
         targetValue = (mapState as? TrainDetailsMapState.Loaded)?.bearing ?: -1,
-        animationSpec = tween(
-            durationMillis = 800
-        )
+        animationSpec = tween(durationMillis = 800)
     )
 
     TopAppBar(
         navigationIcon = {
-            IconButton(
-                onClick = {
-                    onBackClick()
-                    navController.popBackStack()
-                }
-            ) {
+            IconButton(onClick = onBackClick) {
                 Icon(
                     painter = painterResource(id = R.drawable.arrow_back),
                     contentDescription = "Return to previous page"
@@ -548,38 +522,27 @@ private fun TopBar(
             if (showDialog) {
                 TrainInfoDialog(
                     info = productInfo,
-                    onDismiss = {
-                        showDialog = false
-                    }
+                    onDismiss = { showDialog = false }
                 )
             }
 
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .clickable {
-                        showDialog = true
-                    }
+                    .clickable { showDialog = true }
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                val title by remember(mapState, info) {
-                    derivedStateOf {
-                        val desc =
-                            if (info != null) "${info.description} | $trainId"
-                            else "Train: $trainId"
+                val desc =
+                    if (info != null) "${info.description} | $trainId"
+                    else "Train: $trainId"
 
-                        if (mapState is TrainDetailsMapState.Loading) {
-                            desc
-                        } else {
-                            val speedIsEstimate = (mapState as TrainDetailsMapState.Loaded).speedIsEstimate
-                            val speedText = animatedSpeed.toString() + "km/h" + if (speedIsEstimate) "*" else ""
+                val title = when (mapState) {
+                    is TrainDetailsMapState.Loading -> desc
+                    is TrainDetailsMapState.Loaded -> {
+                        val speedText = animatedSpeed.toString() + "km/h" + if (mapState.speedIsEstimate) "*" else ""
 
-                            if ((desc + speedText).length >= 15) {
-                                "$desc\n$speedText"
-                            } else {
-                                "$desc | $speedText"
-                            }
-                        }
+                        if ((desc + speedText).length >= 15) "$desc\n$speedText"
+                        else "$desc | $speedText"
                     }
                 }
 
@@ -602,13 +565,13 @@ private fun TopBar(
                     Icon(
                         painter = painterResource(id = R.drawable.compass),
                         tint = TopAppBarDefaults.topAppBarColors().titleContentColor,
-                        contentDescription = "Start settings"
+                        contentDescription = "Compass"
                     )
 
                     Icon(
                         painter = painterResource(id = R.drawable.needle_tip),
                         tint = MaterialTheme.colorScheme.primary,
-                        contentDescription = "Start settings"
+                        contentDescription = null // decorative
                     )
                 }
             }
@@ -617,13 +580,11 @@ private fun TopBar(
 
             FilledIconToggleButton(
                 checked = showingMap,
-                onCheckedChange = {
-                    showMap(it)
-                }
+                onCheckedChange = { showMap(it) }
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.map),
-                    contentDescription = "Start settings"
+                    contentDescription = "Toggle map"
                 )
             }
 

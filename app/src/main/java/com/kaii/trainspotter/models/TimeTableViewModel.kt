@@ -1,14 +1,14 @@
-package com.kaii.trainspotter.models.time_table
+package com.kaii.trainspotter.models
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kaii.trainspotter.api.ArrivalsResponse
-import com.kaii.trainspotter.api.DeparturesResponse
 import com.kaii.trainspotter.api.RealtimeClient
-import com.kaii.trainspotter.api.TimetableEntry
 import com.kaii.trainspotter.compose.widgets.TimeTableType
+import com.kaii.trainspotter.domain.ArrivalsResponse
+import com.kaii.trainspotter.domain.DeparturesResponse
+import com.kaii.trainspotter.domain.TimetableEntry
 import com.kaii.trainspotter.helpers.ServerConstants
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
@@ -16,17 +16,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
-class TimeTableViewModel(
-    context: Context,
-    apiKey: String
+@HiltViewModel
+class TimeTableViewModel @Inject constructor(
+    private val realtimeClient: RealtimeClient
 ) : ViewModel() {
-    private val realtimeClient =
-        RealtimeClient(
-            context = context,
-            apiKey = apiKey
-        )
-
     private var stopId = ""
     private var job: Job? = null
 
@@ -92,7 +88,7 @@ class TimeTableViewModel(
                     }
                 }
 
-                delay(ServerConstants.UPDATE_TIME)
+                delay(ServerConstants.UPDATE_TIME.milliseconds)
             }
         }
     }
@@ -101,7 +97,7 @@ class TimeTableViewModel(
         _refreshing.value = true
         fetchData(stopId = stopId)
 
-        delay(ServerConstants.REFRESH_TIME)
+        delay(ServerConstants.REFRESH_TIME.milliseconds)
         _refreshing.value = false
     }
 

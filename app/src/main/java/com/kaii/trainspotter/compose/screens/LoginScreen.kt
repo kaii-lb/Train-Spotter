@@ -1,6 +1,5 @@
 package com.kaii.trainspotter.compose.screens
 
-import android.content.pm.PackageManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,16 +20,15 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -38,31 +36,49 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.kaii.lavender.snackbars.LavenderSnackbarController
 import com.kaii.lavender.snackbars.LavenderSnackbarEvents
-import com.kaii.trainspotter.LocalMainViewModel
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.RealtimeClient
-import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.compose.widgets.ApiKeyExplanationDialog
 import com.kaii.trainspotter.compose.widgets.NotificationPermissionDialog
-import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.domain.LoginEvent
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.kaii.trainspotter.models.LoginViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.emptyFlow
+
+@Preview
+@Composable
+private fun LoginScreenPreview() {
+    LoginScreen(
+        events = emptyFlow(),
+        onLogin = { _, _ -> }
+    )
+}
 
 @Composable
 fun LoginScreen(
+    viewModel: LoginViewModel,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    var showDialog by remember {
-        mutableStateOf(
-            context.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED
-        )
-    }
+    LoginScreen(
+        events = viewModel.events,
+        modifier = modifier,
+        onLogin = viewModel::logIn
+    )
+}
+
+@Composable
+fun LoginScreen(
+    events: Flow<LoginEvent>,
+    modifier: Modifier = Modifier,
+    onLogin: (rtKey: String, tvKey: String) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
     if (showDialog) {
         NotificationPermissionDialog {
             showDialog = false
@@ -183,29 +199,13 @@ fun LoginScreen(
                     }
             )
 
-            val mainViewModel = LocalMainViewModel.current
-            val context = LocalContext.current
             val resources = LocalResources.current
-            val coroutineScope = rememberCoroutineScope()
+            LaunchedEffect(events) {
+                events.collectLatest { event ->
+                    when (event) {
+                        LoginEvent.RequestNotificationPermission -> showDialog = true
 
-            Button(
-                onClick = {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        val realtimeClient =
-                            RealtimeClient(
-                                context = context,
-                                apiKey = realtimeKey
-                            )
-                        val trafikVerketClient =
-                            TrafikverketClient(
-                                context = context,
-                                apiKey = trafikVerketKey
-                            )
-
-                        val response1 = realtimeClient.findStopGroups(name = "malmö")
-                        val response2 = trafikVerketClient.getRouteDataForId(trainId = "1778")
-
-                        if (response1 == null) {
+                        LoginEvent.RealtimeKeyInvalid ->
                             LavenderSnackbarController.pushEvent(
                                 LavenderSnackbarEvents.MessageEvent(
                                     message = resources.getString(R.string.login_realtime_key_wrong),
@@ -213,7 +213,8 @@ fun LoginScreen(
                                     duration = SnackbarDuration.Short
                                 )
                             )
-                        } else if (response2.isEmpty()) {
+
+                        LoginEvent.TrafikverketKeyInvalid ->
                             LavenderSnackbarController.pushEvent(
                                 LavenderSnackbarEvents.MessageEvent(
                                     message = resources.getString(R.string.login_trafikverket_key_wrong),
@@ -221,14 +222,8 @@ fun LoginScreen(
                                     duration = SnackbarDuration.Short
                                 )
                             )
-                        } else {
-                            mainViewModel.settings.user.setApiKey(
-                                ApiKey.Available(
-                                    realtimeKey = realtimeKey,
-                                    trafikVerketKey = trafikVerketKey
-                                )
-                            )
 
+                        LoginEvent.LoginSuccessful ->
                             LavenderSnackbarController.pushEvent(
                                 LavenderSnackbarEvents.MessageEvent(
                                     message = resources.getString(R.string.login_successful),
@@ -236,8 +231,13 @@ fun LoginScreen(
                                     duration = SnackbarDuration.Short
                                 )
                             )
-                        }
                     }
+                }
+            }
+
+            Button(
+                onClick = {
+                    onLogin(realtimeKey, trafikVerketKey)
                 },
                 enabled = realtimeKey.isNotBlank() && trafikVerketKey.isNotBlank(),
                 modifier = Modifier

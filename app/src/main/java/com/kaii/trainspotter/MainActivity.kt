@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -13,17 +14,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -44,25 +42,17 @@ import com.kaii.trainspotter.compose.screens.TimeTableScreen
 import com.kaii.trainspotter.compose.screens.TrainDetailsScreen
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.Screens
-import com.kaii.trainspotter.models.main.MainViewModel
-import com.kaii.trainspotter.models.main.MainViewModelFactory
-import com.kaii.trainspotter.models.time_table.TimeTableViewModel
-import com.kaii.trainspotter.models.time_table.TimeTableViewModelFactory
-import com.kaii.trainspotter.models.train_details.TrainDetailsViewModel
-import com.kaii.trainspotter.models.train_details.TrainDetailsViewModelFactory
+import com.kaii.trainspotter.models.SettingsViewModel
 import com.kaii.trainspotter.ui.theme.TrainSpotterTheme
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import dagger.hilt.android.AndroidEntryPoint
 import org.maplibre.android.MapLibre
 import kotlin.reflect.typeOf
 
 val LocalNavController = compositionLocalOf<NavHostController> {
     throw IllegalStateException("CompositionLocal LocalNavController not present")
 }
-val LocalMainViewModel = compositionLocalOf<MainViewModel> {
-    throw IllegalStateException("CompositionLocal LocalMainViewModel not present")
-}
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -73,37 +63,17 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
-        val mainViewModel: MainViewModel = ViewModelProvider.create(
-            store = viewModelStore,
-            factory = MainViewModelFactory(applicationContext)
-        )[MainViewModel::class]
-
-        val initialApiKey = runBlocking {
-            mainViewModel.settings.user.getApiKey().first()
-        }
+        val mainViewModel by viewModels<SettingsViewModel>()
 
         setContent {
             TrainSpotterTheme {
                 val navController = rememberNavController()
 
-                val apiKey by mainViewModel.settings.user.getApiKey().collectAsState(initial = initialApiKey)
+                val apiKey by mainViewModel.apiKey.collectAsStateWithLifecycle()
                 val savedApiKey = rememberSaveable(
                     saver = ApiKey.Saver,
                     inputs = arrayOf(apiKey)
-                ) {
-                    apiKey
-                }
-
-                val context = LocalContext.current
-                LaunchedEffect(apiKey) {
-                    if (apiKey is ApiKey.Available) {
-
-                        mainViewModel.init(
-                            context = context,
-                            apiKey = apiKey as ApiKey.Available
-                        )
-                    }
-                }
+                ) { apiKey }
 
                 // preload short code map for performance reasons (unknown if significant)
                 LocationShortCodeMap.preloadMap(context = applicationContext)
@@ -112,8 +82,7 @@ class MainActivity : ComponentActivity() {
                 RailwayEventCodeMap.preloadMap(context = applicationContext)
 
                 CompositionLocalProvider(
-                    LocalNavController provides navController,
-                    LocalMainViewModel provides mainViewModel
+                    LocalNavController provides navController
                 ) {
                     val snackbarHostState = remember {
                         LavenderSnackbarHostState()
@@ -153,7 +122,7 @@ class MainActivity : ComponentActivity() {
             }
         ) {
             composable<Screens.Login> {
-                LoginScreen()
+                LoginScreen(viewModel = hiltViewModel())
             }
 
             composable<Screens.TimeTable>(
@@ -165,50 +134,34 @@ class MainActivity : ComponentActivity() {
             ) {
                 val screen = it.toRoute<Screens.TimeTable>()
 
-                val context = LocalContext.current
-                val viewModel = viewModel<TimeTableViewModel>(
-                    factory = TimeTableViewModelFactory(
-                        context = context,
-                        apiKey = (apiKey as ApiKey.Available).realtimeKey
-                    )
-                )
-
                 TimeTableScreen(
                     stopId = screen.stopId,
                     stopName = screen.stopName,
-                    viewModel = viewModel
+                    viewModel = hiltViewModel()
                 )
             }
 
             composable<Screens.Search> {
-                SearchScreen(
-                    apiKey = (apiKey as ApiKey.Available)
-                )
+                SearchScreen(viewModel = hiltViewModel())
             }
 
             composable<Screens.Settings> {
-                Settings()
+                Settings(viewModel = hiltViewModel())
             }
 
             composable<Screens.TrainDetails> {
                 val screen = it.toRoute<Screens.TrainDetails>()
 
-                val context = LocalContext.current
-                val viewModel = viewModel<TrainDetailsViewModel>(
-                    factory = TrainDetailsViewModelFactory(
-                        context = context,
-                        apiKey = (apiKey as ApiKey.Available).trafikVerketKey
-                    )
-                )
-
                 TrainDetailsScreen(
                     trainId = screen.trainId,
-                    viewModel = viewModel
+                    viewModel = hiltViewModel()
                 )
             }
 
             composable<Screens.ServiceTesting> {
-                ServiceTesting()
+                ServiceTesting(
+                    apiKey = { apiKey }
+                )
             }
         }
     }

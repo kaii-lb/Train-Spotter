@@ -1,6 +1,7 @@
 package com.kaii.trainspotter.api
 
 import android.content.Context
+import com.kaii.trainspotter.domain.RailwayEventError
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream

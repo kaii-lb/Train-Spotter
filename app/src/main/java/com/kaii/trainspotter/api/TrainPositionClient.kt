@@ -1,8 +1,12 @@
 package com.kaii.trainspotter.api
 
-import android.content.Context
 import android.util.Log
-import com.kaii.trainspotter.R
+import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.domain.TrainPosition
+import com.kaii.trainspotter.domain.TrainPositionMini
+import com.kaii.trainspotter.domain.TrainPositionResponseHolder
+import com.kaii.trainspotter.domain.TrainPositionResult
+import com.kaii.trainspotter.domain.WGS84Coordinates
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
@@ -29,8 +33,7 @@ import kotlin.time.ExperimentalTime
 private const val TAG = "com.kaii.trainspotter.api.TrainPositionClient"
 
 class TrainPositionClient(
-    context: Context,
-    private val apiKey: String
+    private var apiKey: ApiKey
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
@@ -40,7 +43,7 @@ class TrainPositionClient(
         .webSocketCloseTimeout(10.minutes)
         .build()
 
-    private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)
+    private val endpoint = "https://api.trafikinfo.trafikverket.se/v2/data.json"
 
     private var source: EventSource? = null
     private val earthRadius = 6371.2 // kilometers
@@ -50,8 +53,13 @@ class TrainPositionClient(
 
     private var _currentTrainId = ""
 
+    fun setApiKey(key: ApiKey) {
+        apiKey = key
+    }
+
     private fun getTrainPosition(
-        trainId: String
+        trainId: String,
+        apiKey: String
     ) = """
         <REQUEST>
             <LOGIN authenticationkey="$apiKey" />
@@ -70,13 +78,16 @@ class TrainPositionClient(
 
     private suspend fun getInitialInfo(
         trainId: String
-    ): TrainPositionResult {
+    ): TrainPositionResult? {
+        if (apiKey is ApiKey.NotAvailable) return null
+        apiKey as ApiKey.Available
+
         val request = Request.Builder()
             .url(endpoint)
             .method(
                 method = "POST",
                 body =
-                    getTrainPosition(trainId = trainId)
+                    getTrainPosition(trainId = trainId, apiKey = (apiKey as ApiKey.Available).trafikverketKey)
                         .toRequestBody(
                             contentType = "application/xml".toMediaType()
                         )
@@ -96,12 +107,13 @@ class TrainPositionClient(
         trainId: String,
         onInfoChange: (trainPosition: TrainPositionMini) -> Unit,
     ) {
-        val initial = getInitialInfo(trainId)
+        val initial = getInitialInfo(trainId) ?: return
+
+        if (initial.info?.sseUrl == null) return
 
         _currentTrainId = trainId
-
         val request = Request.Builder()
-            .url(initial.info!!.sseUrl!!)
+            .url(initial.info.sseUrl)
             .build()
 
         val date =

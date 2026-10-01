@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -24,7 +25,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kaii.trainspotter.LocalMainViewModel
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.compose.widgets.ApiKeyPreferenceRow
@@ -33,10 +33,27 @@ import com.kaii.trainspotter.compose.widgets.TextPreferencesRow
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.models.SettingsViewModel
 
 @Composable
 fun Settings(
+    viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
+) {
+    val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
+
+    Settings(
+        apiKey = { apiKey },
+        modifier = modifier,
+        onSetApiKey = viewModel::setApiKey
+    )
+}
+
+@Composable
+fun Settings(
+    apiKey: () -> ApiKey,
+    modifier: Modifier = Modifier,
+    onSetApiKey: (newKey: ApiKey) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -63,25 +80,22 @@ fun Settings(
                 )
             }
             item {
-                val mainViewModel = LocalMainViewModel.current
-                val apiKey by mainViewModel.settings.user.getApiKey().collectAsStateWithLifecycle(initialValue = ApiKey.NotAvailable)
-
                 ApiKeyPreferenceRow(
-                    initialKey = apiKey,
+                    initialKey = apiKey(),
                     isRealtimeKey = true,
                     setKey = { new ->
                         if (new.isBlank()) {
-                            mainViewModel.settings.user.setApiKey(ApiKey.NotAvailable)
+                            onSetApiKey(ApiKey.NotAvailable)
                         } else {
-                            mainViewModel.settings.user.setApiKey(
-                                if (apiKey is ApiKey.Available) {
-                                    (apiKey as ApiKey.Available).copy(
+                            onSetApiKey(
+                                if (apiKey() is ApiKey.Available) {
+                                    (apiKey() as ApiKey.Available).copy(
                                         realtimeKey = new
                                     )
                                 } else {
                                     ApiKey.Available(
                                         realtimeKey = new,
-                                        trafikVerketKey = ""
+                                        trafikverketKey = ""
                                     )
                                 }
                             )
@@ -92,24 +106,24 @@ fun Settings(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ApiKeyPreferenceRow(
-                    initialKey = apiKey,
+                    initialKey = apiKey(),
                     isRealtimeKey = false,
                     setKey = { new ->
                         if (new.isBlank()) {
-                            mainViewModel.settings.user.setApiKey(ApiKey.NotAvailable)
+                            onSetApiKey(ApiKey.NotAvailable)
                         } else {
-                            mainViewModel.settings.user.setApiKey(
-                                if (apiKey is ApiKey.Available) {
-                                    (apiKey as ApiKey.Available).copy(
-                                        trafikVerketKey = new
-                                    )
-                                } else {
-                                    ApiKey.Available(
-                                        realtimeKey = "",
-                                        trafikVerketKey = new
-                                    )
-                                }
-                            )
+                            val newKey = if (apiKey() is ApiKey.Available) {
+                                (apiKey() as ApiKey.Available).copy(
+                                    trafikverketKey = new
+                                )
+                            } else {
+                                ApiKey.Available(
+                                    realtimeKey = "",
+                                    trafikverketKey = new
+                                )
+                            }
+
+                            onSetApiKey(newKey)
                         }
                     }
                 )
@@ -123,7 +137,9 @@ fun Settings(
 
             item {
                 val context = LocalContext.current
-                val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+                val version = remember {
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+                }
 
                 TextPreferencesRow(
                     title = stringResource(id = R.string.settings_developer),

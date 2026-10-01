@@ -7,7 +7,7 @@ interface ApiKey {
 
     data class Available(
         val realtimeKey: String,
-        val trafikVerketKey: String
+        val trafikverketKey: String
     ) : ApiKey
 
     companion object {
@@ -16,7 +16,7 @@ interface ApiKey {
                 if (it is Available) {
                     listOf(
                         it.realtimeKey,
-                        it.trafikVerketKey
+                        it.trafikverketKey
                     )
                 } else {
                     emptyList()
@@ -28,7 +28,7 @@ interface ApiKey {
                 } else {
                     Available(
                         realtimeKey = it[0],
-                        trafikVerketKey = it[1]
+                        trafikverketKey = it[1]
                     )
                 }
             }

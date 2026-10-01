@@ -1,0 +1,39 @@
+package com.kaii.trainspotter.datastore
+
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+
+class UserSettingsImpl(
+    private val context: Context,
+    private val scope: CoroutineScope
+) : Preference(context, scope) {
+    private val realtimeKey = stringPreferencesKey("user_api_key_realtime")
+    private val trafikVerketKey = stringPreferencesKey("user_api_key_trafikverket")
+
+    fun getApiKey() =
+        context.datastore.data.map {
+            if (it[realtimeKey] == null || it[realtimeKey]?.isBlank() != false
+                || it[trafikVerketKey] == null || it[trafikVerketKey]?.isBlank() != false
+            ) ApiKey.NotAvailable
+            else ApiKey.Available(
+                realtimeKey = it[realtimeKey]!!,
+                trafikverketKey = it[trafikVerketKey]!!
+            )
+        }
+
+    fun setApiKey(key: ApiKey) = scope.launch {
+        context.datastore.edit {
+            it[realtimeKey] =
+                if (key is ApiKey.NotAvailable) ""
+                else (key as ApiKey.Available).realtimeKey
+
+            it[trafikVerketKey] =
+                if (key is ApiKey.NotAvailable) ""
+                else (key as ApiKey.Available).trafikverketKey
+        }
+    }
+}

@@ -31,10 +31,8 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaii.lavender.snackbars.LavenderSnackbarController
 import com.kaii.lavender.snackbars.LavenderSnackbarEvents
-import com.kaii.trainspotter.LocalMainViewModel
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.TrainUpdateConnection
@@ -47,9 +45,12 @@ import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
-fun ServiceTesting() {
+fun ServiceTesting(
+    apiKey: () -> ApiKey
+) {
     val context = LocalContext.current
     val trainUpdateConnection = remember { TrainUpdateConnection() }
     DisposableEffect(Unit) {
@@ -124,7 +125,6 @@ fun ServiceTesting() {
             item {
                 val resources = LocalResources.current
                 val coroutineScope = rememberCoroutineScope()
-                val apiKey by LocalMainViewModel.current.settings.user.getApiKey().collectAsStateWithLifecycle(initialValue = ApiKey.NotAvailable)
 
                 TextPreferencesRow(
                     title = stringResource(id = R.string.service_testing_start),
@@ -137,11 +137,11 @@ fun ServiceTesting() {
 
                         coroutineScope.launch {
                             do {
-                                delay(1000)
+                                delay(1.seconds)
                             } while (trainUpdateConnection.service == null)
 
                             trainUpdateConnection.service!!.setup(
-                                apiKey = (apiKey as ApiKey.Available).trafikVerketKey,
+                                apiKey = apiKey(),
                                 trainId = trainId,
                                 initialTitle = "Loading...",
                                 initialSpeed = "0km/h"

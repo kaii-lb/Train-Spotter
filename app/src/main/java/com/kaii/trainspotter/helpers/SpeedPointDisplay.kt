@@ -1,7 +1,15 @@
 package com.kaii.trainspotter.helpers
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import mil.nga.geopackage.GeoPackage
 import mil.nga.geopackage.GeoPackageFactory
@@ -18,91 +26,125 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.Point
 
 class SpeedPointDisplay(
-    context: Context
+    private val context: Context
 ) {
     private val packageName = "TN_RAILWAY_DESIGNSPEED"
 
-    private val geoPackageManager = GeoPackageFactory.getManager(context)
-    private val geoPackage: GeoPackage
-    private val featureDao: FeatureDao
-    private val indexManager: FeatureIndexManager
+    private val mutex = Mutex()
+    private val releaseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private var initialized = false
+    @Volatile
+    private var released = false
 
-    init {
-        if (!geoPackageManager.exists(packageName)) {
-            val assetStream = context.assets.open("$packageName.gpkg")
+    private var geoPackage: GeoPackage? = null
+    private var featureDao: FeatureDao? = null
+    private var indexManager: FeatureIndexManager? = null
+    private var cached: FeatureCollection? = null
 
-            geoPackageManager.importGeoPackage(packageName, assetStream)
+    private fun openIfNeeded() {
+        if (indexManager != null) return
+
+        val manager = GeoPackageFactory.getManager(context)
+
+        if (!manager.exists(packageName)) {
+            context.assets.open("$packageName.gpkg").use { stream ->
+                manager.importGeoPackage(packageName, stream)
+            }
         }
 
-        geoPackage = geoPackageManager.open(packageName)
-        featureDao = geoPackage.getFeatureDao(packageName)
-        indexManager = FeatureIndexManager(context, geoPackage, featureDao)
+        val gpkg = manager.open(packageName)
+        val dao = gpkg.getFeatureDao(packageName)
+        val index = FeatureIndexManager(context, gpkg, dao)
 
-        if (!indexManager.isIndexed) {
-            println("FEATURES INDEXING MAY TAKE A WHILE}")
-            indexManager.index()
+        if (!index.isIndexed) {
+            println("FEATURES INDEXING MAY TAKE A WHILE")
+            index.index()
         }
 
-        initialized = true
+        geoPackage = gpkg
+        featureDao = dao
+        indexManager = index
     }
 
-    fun release() {
-        if (!initialized) return
+    private suspend fun queryLocked(): FeatureCollection? {
+        if (released) return null
+        cached?.let { return it }
 
-        initialized = false
+        openIfNeeded()
 
-        indexManager.close()
-        geoPackage.close()
-    }
-
-    suspend fun fetchSpeedsForBounds(
-        mapLibreMap: MapLibreMap
-    ) = withContext(Dispatchers.IO) {
-        if (!initialized) return@withContext
-
-        // TODO
-        // val boundingBox = BoundingBox(sw.longitude, ne.longitude, sw.latitude, ne.latitude)
+        val dao = featureDao ?: return null
+        val index = indexManager ?: return null
 
         val mapProjection = ProjectionFactory.getProjection(
             ProjectionConstants.AUTHORITY_EPSG,
             ProjectionConstants.EPSG_WORLD_GEODETIC_SYSTEM.toLong()
         )
-        val transformer = ProjectionTransform(featureDao.projection, mapProjection)
+        val transformer = ProjectionTransform(dao.projection, mapProjection)
 
-        val results = indexManager.query(false)
+        val features = mutableListOf<Feature>()
 
-        val mapboxFeatures = mutableListOf<Feature>()
-        try {
-            results.forEach { featureRow ->
+        index.query(false).let { results ->
+            for (featureRow in results) {
+                currentCoroutineContext().ensureActive()
+                if (released) return null
+
                 val speed = featureRow.getValue("speed")?.toString()
-                val geometry = featureRow.geometry.geometry
+                val geometry = featureRow.geometry?.geometry
 
                 if (geometry != null && !geometry.isEmpty && speed != null) {
                     val input = ProjCoordinate(geometry.centroid.x, geometry.centroid.y)
-                    val transformedGeometry = transformer.transform(input)
+                    val transformed = transformer.transform(input)
 
-                    val lat = transformedGeometry.y
-                    val lon = transformedGeometry.x
-
-                    val point = Point.fromLngLat(lon, lat)
-
-                    val feature = Feature.fromGeometry(point)
+                    val feature = Feature.fromGeometry(
+                        Point.fromLngLat(transformed.x, transformed.y)
+                    )
                     feature.addStringProperty("speed", speed)
 
-                    mapboxFeatures.add(feature)
+                    features.add(feature)
                 }
             }
-        } finally {
+
             results.close()
-            indexManager.close()
         }
 
-        val featureCollection = FeatureCollection.fromFeatures(mapboxFeatures)
+        return FeatureCollection.fromFeatures(features).also { cached = it }
+    }
+
+    private suspend fun loadFeatures(): FeatureCollection? = withContext(Dispatchers.IO) {
+        mutex.withLock { queryLocked() }
+    }
+
+    fun release() {
+        if (released) return
+        released = true
+
+        releaseScope.launch {
+            mutex.withLock {
+                runCatching { indexManager?.close() }
+                runCatching { geoPackage?.close() }
+
+                indexManager = null
+                featureDao = null
+                geoPackage = null
+                cached = null
+            }
+
+            releaseScope.cancel()
+        }
+    }
+
+    suspend fun fetchSpeedsForBounds(
+        mapLibreMap: MapLibreMap
+    ) {
+        // TODO: filter by map bounds with indexManager.query(boundingBox, projection)
+        val collection = loadFeatures() ?: return
+
         withContext(Dispatchers.Main) {
-            val source = mapLibreMap.style?.getSourceAs<GeoJsonSource>("speed-source")
-            source?.setGeoJson(featureCollection)
+            if (released) return@withContext
+
+            mapLibreMap.style
+                ?.getSourceAs<GeoJsonSource>("speed-source")
+                ?.setGeoJson(collection)
         }
     }
 }

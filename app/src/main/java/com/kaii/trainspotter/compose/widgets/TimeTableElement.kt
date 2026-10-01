@@ -41,8 +41,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.TimetableEntry
-import com.kaii.trainspotter.api.TransportMode
+import com.kaii.trainspotter.domain.TimetableEntry
+import com.kaii.trainspotter.domain.TransportMode
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.formatDelay
@@ -146,9 +146,9 @@ fun TimeTableElement(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     if (item.canceled || item.alerts.any {
-                        it.title.lowercase().contains("inställt")
-                                || it.title.lowercase().contains("inställd")
-                    }) {
+                            it.title.lowercase().contains("inställt")
+                                    || it.title.lowercase().contains("inställd")
+                        }) {
                         val tooltipState = rememberTooltipState(isPersistent = true)
                         val coroutineScope = rememberCoroutineScope()
 

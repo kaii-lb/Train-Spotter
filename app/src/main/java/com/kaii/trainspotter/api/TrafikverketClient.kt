@@ -1,9 +1,14 @@
 package com.kaii.trainspotter.api
 
-import android.content.Context
 import android.util.Log
 import androidx.compose.ui.util.fastMapNotNull
-import com.kaii.trainspotter.R
+import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.domain.Information
+import com.kaii.trainspotter.domain.LocationDetails
+import com.kaii.trainspotter.domain.RailwayEventResponseHolder
+import com.kaii.trainspotter.domain.TrainAnnouncementResponse
+import com.kaii.trainspotter.domain.TrainInformation
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -26,8 +31,7 @@ import kotlin.time.Instant
 private const val TAG = "com.kaii.trainspotter.api.TrafikVerketClient"
 
 class TrafikverketClient(
-    context: Context,
-    private val apiKey: String
+    private var apiKey: ApiKey
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
@@ -36,25 +40,32 @@ class TrafikverketClient(
         .callTimeout(10.minutes)
         .webSocketCloseTimeout(10.minutes)
         .build()
-    private val endpoint = context.resources.getString(R.string.trafikverket_endpoint)
+    private val endpoint = "https://api.trafikinfo.trafikverket.se/v2/data.json"
 
-    private fun getTrainAnnouncement(trainId: String) = """
+    fun setApiKey(key: ApiKey) {
+        apiKey = key
+    }
+
+    private fun getTrainAnnouncement(
+        trainId: String,
+        apiKey: String
+    ) = $$"""
         <REQUEST>
-          <LOGIN authenticationkey="$apiKey" />
+          <LOGIN authenticationkey="$$apiKey" />
           <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" limit="100" orderby="AdvertisedTimeAtLocation">
             <FILTER>
                 <AND>
                     <AND>
-                      <EQ name="AdvertisedTrainIdent" value="$trainId" />
+                      <EQ name="AdvertisedTrainIdent" value="$$trainId" />
                       <GT name="ActivityId" value="0" />
                     </AND>
         
                     <OR>
                         <AND>
-                          <GT name="AdvertisedTimeAtLocation" value="${'$'}dateadd(-0.14:00:00)" />
-                          <LT name="AdvertisedTimeAtLocation" value="${'$'}dateadd(0.14:00:00)" />
+                          <GT name="AdvertisedTimeAtLocation" value="$dateadd(-0.14:00:00)" />
+                          <LT name="AdvertisedTimeAtLocation" value="$dateadd(0.14:00:00)" />
                         </AND>
-                        <GT name="EstimatedTimeAtLocation" value="${'$'}now" />
+                        <GT name="EstimatedTimeAtLocation" value="$now" />
                     </OR>
                 </AND>
             </FILTER>
@@ -76,7 +87,8 @@ class TrafikverketClient(
     private fun getRailwayEvents(
         locationSignature: String,
         timeBefore: String,
-        timeAfter: String
+        timeAfter: String,
+        apiKey: String
     ) = """
         <REQUEST>
             <LOGIN authenticationkey="$apiKey"/>
@@ -97,15 +109,17 @@ class TrafikverketClient(
     """.trimIndent()
 
     private suspend fun getTrainAnnouncementsForId(trainId: String): TrainAnnouncementResponse? {
+        if (apiKey is ApiKey.NotAvailable) return null
+
         try {
             val request = Request.Builder()
                 .url(endpoint)
                 .method(
                     method = "POST",
-                    body = getTrainAnnouncement(trainId = trainId)
-                        .toRequestBody(
-                            contentType = "application/xml".toMediaType()
-                        )
+                    body = getTrainAnnouncement(
+                        trainId = trainId,
+                        apiKey = (apiKey as ApiKey.Available).trafikverketKey
+                    ).toRequestBody(contentType = "application/xml".toMediaType())
                 )
                 .build()
 
@@ -130,6 +144,7 @@ class TrafikverketClient(
         time: String?
     ): List<Alert>? {
         if (signature == null || time == null) return null
+        if (apiKey is ApiKey.NotAvailable) return null
 
         try {
             val dayOf = Instant.parse(time)
@@ -162,7 +177,8 @@ class TrafikverketClient(
                         getRailwayEvents(
                             locationSignature = signature,
                             timeBefore = dayOf,
-                            timeAfter = dayAfter
+                            timeAfter = dayAfter,
+                            apiKey = (apiKey as ApiKey.Available).trafikverketKey
                         )
                             .toRequestBody(
                                 contentType = "application/xml".toMediaType()
@@ -200,7 +216,7 @@ class TrafikverketClient(
                             }
                         }
                     }
-                }.flatMap { it }.distinct()
+                }.flatten().distinct()
             } else {
                 null
             }
@@ -213,10 +229,10 @@ class TrafikverketClient(
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun getRouteDataForId(trainId: String): SortedMap<String, LocationDetails> {
-        val announcements = getTrainAnnouncementsForId(trainId = trainId)
-
-        if (announcements == null) return sortedMapOf()
+    suspend fun getRouteDataForId(
+        trainId: String
+    ): SortedMap<String, LocationDetails>? = try {
+        val announcements = getTrainAnnouncementsForId(trainId = trainId) ?: return sortedMapOf()
 
         val grouped = announcements.response.result
             .first()
@@ -408,5 +424,10 @@ class TrafikverketClient(
                 ).epochSeconds
             }
         )
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        Log.e(TAG, "Failed to get route data for trainId: $trainId. ${e.message}")
+        null
     }
 }

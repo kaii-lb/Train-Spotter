@@ -35,7 +35,7 @@ import com.kaii.trainspotter.compose.widgets.TimeTableType
 import com.kaii.trainspotter.compose.widgets.TimeTableTypeDisplay
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
-import com.kaii.trainspotter.models.time_table.TimeTableViewModel
+import com.kaii.trainspotter.models.TimeTableViewModel
 import com.pushpal.jetlime.ItemsList
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
@@ -60,9 +60,7 @@ fun TimeTableScreen(
     LaunchedEffect(Unit) {
         viewModel.startListening(
             stopId = stopId,
-            onScroll = { index ->
-                listState.scrollToItem(0)
-            }
+            onScroll = { listState.scrollToItem(0) }
         )
     }
 
@@ -75,9 +73,7 @@ fun TimeTableScreen(
                 setType = { newType ->
                     viewModel.switchType(
                         type = newType,
-                        onScroll = { index ->
-                            listState.scrollToItem(0)
-                        }
+                        onScroll = { listState.scrollToItem(0) }
                     )
                 },
                 onBackClick = viewModel::cancel

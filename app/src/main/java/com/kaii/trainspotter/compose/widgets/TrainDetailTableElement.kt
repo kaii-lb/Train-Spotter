@@ -44,7 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.api.LocationDetails
+import com.kaii.trainspotter.domain.LocationDetails
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.pushpal.jetlime.EventPointType
 import com.pushpal.jetlime.EventPosition

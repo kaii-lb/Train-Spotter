@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.ksp)
+    alias(libs.plugins.dagger.hilt)
 }
 
 kotlin {
@@ -14,12 +16,12 @@ kotlin {
 
 android {
     namespace = "com.kaii.trainspotter"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.kaii.trainspotter"
         minSdk = 30
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 180
         versionName = "1.8.0"
 
@@ -31,6 +33,10 @@ android {
             isShrinkResources = true
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+
+        debug {
+            isMinifyEnabled = false
         }
     }
 
@@ -69,6 +75,9 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.androidx.lifecycle)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.androidx.hilt.navigation.compose)
+
+    implementation(libs.dagger.hilt)
 
     implementation(libs.org.jetbrains.kotlinx.serialization)
     implementation(libs.org.jetbrains.kotlinx.datetime)
@@ -91,4 +100,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    ksp(libs.dagger.hilt.compiler)
+    ksp(libs.hilt.compiler)
 }

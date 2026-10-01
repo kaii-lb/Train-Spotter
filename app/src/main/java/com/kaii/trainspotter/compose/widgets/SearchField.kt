@@ -1,7 +1,5 @@
 package com.kaii.trainspotter.compose.widgets
 
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -50,27 +48,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
+import com.kaii.trainspotter.domain.SearchMode
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.presentation.description
+import com.kaii.trainspotter.presentation.icon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import kotlin.random.Random
-
-@Serializable
-enum class SearchMode(
-    @param:DrawableRes val icon: Int,
-    @param:StringRes val description: Int
-) {
-    Station(
-        icon = R.drawable.location_on_filled,
-        description = R.string.station
-    ),
-    Train(
-        icon = R.drawable.train_filled,
-        description = R.string.train
-    )
-}
+import kotlin.time.Duration.Companion.seconds
 
 private val placeholders = listOf(
     "Skurup Station",
@@ -83,7 +69,7 @@ private val placeholders = listOf(
 @Composable
 fun SearchField(
     text: String,
-    searchMode: SearchMode,
+    searchMode: () -> SearchMode,
     isError: Boolean = false,
     setText: (text: String) -> Unit,
     setSearchMode: (mode: SearchMode) -> Unit,
@@ -92,7 +78,7 @@ fun SearchField(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(text, searchMode) {
-        delay(2000)
+        delay(1.5.seconds)
         onSearch()
     }
 
@@ -107,8 +93,8 @@ fun SearchField(
         placeholder = {
             Text(
                 text = placeholders[Random.nextInt(
-                    if (searchMode == SearchMode.Station) 0 else placeholders.size / 2,
-                    if (searchMode == SearchMode.Station) placeholders.size / 2 else placeholders.size - 1
+                    if (searchMode() == SearchMode.Station) 0 else placeholders.size / 2,
+                    if (searchMode() == SearchMode.Station) placeholders.size / 2 else placeholders.size - 1
                 )],
                 fontSize = TextStylingConstants.SIZE_MEDIUM
             )
@@ -159,8 +145,8 @@ fun SearchField(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        painter = painterResource(id = searchMode.icon),
-                        contentDescription = "Searching for ${searchMode.name}"
+                        painter = painterResource(id = searchMode().icon),
+                        contentDescription = "Searching for ${searchMode().name}"
                     )
 
                     Icon(
@@ -222,6 +208,7 @@ fun SearchField(
                             }
                         }
                     }
+
                     2 -> {
                         Row(
                             modifier = Modifier
@@ -240,6 +227,7 @@ fun SearchField(
                             )
                         }
                     }
+
                     else -> {
                         Box(
                             modifier = Modifier

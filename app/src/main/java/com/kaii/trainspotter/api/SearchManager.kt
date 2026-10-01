@@ -1,162 +1,115 @@
 package com.kaii.trainspotter.api
 
-import android.content.Context
-import android.content.res.Resources
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import com.kaii.trainspotter.R
-import com.kaii.trainspotter.compose.widgets.SearchMode
-import com.kaii.trainspotter.datastore.ApiKey
-import kotlinx.coroutines.CoroutineScope
+import com.kaii.trainspotter.domain.SearchDescription
+import com.kaii.trainspotter.domain.SearchMode
+import com.kaii.trainspotter.domain.SearchName
+import com.kaii.trainspotter.domain.SearchResult
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Serializable
-data class SearchResult(
-    val name: String,
-    val description: String,
-    val id: String,
-    val hasError: Boolean,
-    val mode: SearchMode
-)
-
-class SearchManager(
-    context: Context,
-    apiKey: ApiKey.Available,
-    private val coroutineScope: CoroutineScope
+class SearchManager @Inject constructor(
+    private val realtimeClient: RealtimeClient,
+    private val trafikverketClient: TrafikverketClient
 ) {
-    private val realtimeClient =
-        RealtimeClient(
-            context = context,
-            apiKey = apiKey.realtimeKey
-        )
-
-    private val trafikverketClient =
-        TrafikverketClient(
-            context = context,
-            apiKey = apiKey.trafikVerketKey
-        )
-
-    private val _results = mutableStateListOf<SearchResult>()
-    private val _isSearching = mutableStateOf(false)
+    private val _searchMode = MutableStateFlow(SearchMode.Station)
+    private val _results = MutableStateFlow(emptyList<SearchResult>())
+    private val _isSearching = MutableStateFlow(false)
     private var currentSearchText = ""
-    private var mode = SearchMode.Station
+
     @OptIn(ExperimentalUuidApi::class)
     private val placeholders =
         (0..9).map {
             SearchResult(
-                name = "",
-                description = "",
+                name = SearchName.Station(""),
+                description = SearchDescription.Station(""),
                 id = Uuid.random().toString(),
                 hasError = false,
-                mode = mode
+                mode = _searchMode.value
             )
         }
 
-    val isSearching by derivedStateOf { _isSearching.value }
-    val results by derivedStateOf { _results.toList() }
+    val isSearching = _isSearching.asStateFlow()
+    val results = _results.asStateFlow()
+    val searchMode = _searchMode.asStateFlow()
 
-    fun search(name: String, searchMode: SearchMode, resources: Resources) = coroutineScope.launch(Dispatchers.IO) {
-        if (name == currentSearchText && searchMode == mode) return@launch
+    fun clear() {
+        currentSearchText = ""
+        _results.value = emptyList()
+    }
+
+    fun changeMode(mode: SearchMode) {
+        _searchMode.value = mode
+    }
+
+    suspend fun search(name: String) = withContext(Dispatchers.IO) {
+        if (name == currentSearchText) return@withContext
 
         if (name == "") {
-            clearResults()
-            return@launch
+            _results.value = emptyList()
+            return@withContext
         }
 
+        val snapshot = _results.value
         currentSearchText = name
-        mode = searchMode
 
-        clearResults()
-        _results.addAll(placeholders)
+        _results.value = placeholders
         _isSearching.value = true
 
-        if (searchMode == SearchMode.Station) {
+        if (_searchMode.value == SearchMode.Station) {
             val new = realtimeClient.findStopGroups(name = name.trim())?.stopGroups?.map { stop ->
                 SearchResult(
                     id = stop.id,
-                    name = stop.name,
-                    description =
-                        resources.getString(
-                            R.string.search_transport_modes,
-                            stop.transportModes.joinToString {
-                                it.name
-                            }
-                        ),
+                    name = SearchName.Station(name = stop.name),
+                    description = SearchDescription.Station(
+                        modeNames = stop.transportModes.joinToString {
+                            it.name
+                        }
+                    ),
                     hasError = stop.stops.any { it.alerts.isNotEmpty() },
                     mode = SearchMode.Station
                 )
             } ?: emptyList()
 
-            _results.addAll(new - _results)
-            _results.retainAll(new)
-            _results.removeAll(placeholders)
+            _results.value = new - snapshot.toSet() - placeholders.toSet()
         } else {
-            val new = trafikverketClient.getRouteDataForId(trainId = name.trim()).values
+            val new = trafikverketClient.getRouteDataForId(trainId = name.trim())?.values ?: emptySet()
 
             if (new.isEmpty()) {
-                clearResults()
+                _results.value = emptyList()
                 _isSearching.value = false
-                return@launch
+                return@withContext
             }
 
             val result = SearchResult(
                 id = name.trim(),
-                name =
-                    resources.getString(
-                        R.string.search_train_route,
-                        new.first().name,
-                        new.last().name
-                    ),
-                description =
-                    resources.getString(
-                        R.string.search_train_time,
-                        new.first().departureTimeFormatted,
-                        new.last().arrivalTimeFormatted
-                    ),
+                name = SearchName.TrainRoute(
+                    start = new.first().name,
+                    end = new.last().name
+                ),
+                description = SearchDescription.TrainTime(
+                    departure = new.first().departureTimeFormatted,
+                    arrival = new.last().arrivalTimeFormatted
+                ),
                 hasError =
                     new.any {
                         it.canceled
                                 || it.deviations.isNotEmpty()
                                 || it.deviations.any { deviation ->
-                                    deviation.text.lowercase().contains("inställt")
-                                            || deviation.text.lowercase().contains("inställd")
-                                }
+                            deviation.text.lowercase().contains("inställt")
+                                    || deviation.text.lowercase().contains("inställd")
+                        }
                     },
                 mode = SearchMode.Train
             )
 
-            clearResults()
-            _results.add(result)
+            _results.value = listOf(result)
         }
 
         _isSearching.value = false
-    }
-
-    fun clearResults() = _results.clear()
-}
-
-@Composable
-fun rememberSearchManager(
-    apiKey: ApiKey.Available
-): SearchManager {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-
-    return remember(apiKey) {
-        SearchManager(
-            context = context,
-            apiKey = apiKey,
-            coroutineScope = coroutineScope
-        )
     }
 }
