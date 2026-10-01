@@ -22,7 +22,7 @@ jobs:
         cache: 'gradle'
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
     - run: sdkmanager "build-tools;36.0.0"
 
     - name: Grant execute permission to gradlew
@@ -44,13 +44,13 @@ jobs:
       run: shred -u app/release.keystore
 
     - name: Upload Arm v8a APK as Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: lavender-trainspotter-nightly-signed-arm-v8a.apk
         path: trainspotter_signed_release_arm64-v8a.apk
 
     - name: Upload Arm v7a APK as Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: lavender-trainspotter-nightly-signed-arm-v7a.apk
         path: trainspotter_signed_release_armeabi-v7a.apk
