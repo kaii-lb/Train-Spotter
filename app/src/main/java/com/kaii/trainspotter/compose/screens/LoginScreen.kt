@@ -1,5 +1,6 @@
 package com.kaii.trainspotter.compose.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,9 +9,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -18,7 +21,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
@@ -85,12 +88,7 @@ fun LoginScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopBar()
-        },
-        modifier = modifier
-    ) { innerPadding ->
+    Scaffold(modifier = modifier) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize(1f)
@@ -104,16 +102,28 @@ fun LoginScreen(
             var realtimeKey by rememberSaveable { mutableStateOf("") }
             var trafikVerketKey by rememberSaveable { mutableStateOf("") }
 
+            Icon(
+                painter = painterResource(id = R.drawable.train),
+                contentDescription = "key",
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(20.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = stringResource(id = R.string.login),
-                fontSize = TextStylingConstants.SIZE_LARGE,
-                fontWeight = FontWeight.Bold,
+                text = stringResource(id = R.string.app_name),
+                style = MaterialTheme.typography.titleLargeEmphasized,
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(36.dp))
 
             TextField(
                 value = realtimeKey,
@@ -235,33 +245,22 @@ fun LoginScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
             Button(
                 onClick = {
                     onLogin(realtimeKey, trafikVerketKey)
                 },
                 enabled = realtimeKey.isNotBlank() && trafikVerketKey.isNotBlank(),
+                shapes = ButtonDefaults.shapes(),
                 modifier = Modifier
                     .fillMaxWidth(0.8f)
             ) {
                 Text(
                     text = stringResource(id = R.string.login_continue),
-                    fontSize = TextStylingConstants.SIZE_MEDIUM
+                    style = MaterialTheme.typography.bodyLarge
                 )
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TopBar(modifier: Modifier = Modifier) {
-    TopAppBar(
-        title = {
-            Text(
-                text = stringResource(id = R.string.app_name),
-                fontSize = TextStylingConstants.SIZE_LARGE
-            )
-        },
-        modifier = modifier
-    )
 }
