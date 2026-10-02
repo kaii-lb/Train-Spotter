@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -152,7 +153,9 @@ fun TrainDetailsScreen(
                 viewModel.cancel()
             }
 
-            context.unbindService(trainUpdateConnection)
+            runCatching {
+                context.unbindService(trainUpdateConnection)
+            }
 
             if (!changingConfig) {
                 context.stopService(serviceIntent)
@@ -280,16 +283,18 @@ fun TrainDetailsScreen(
 
     Scaffold(
         topBar = {
+            val productInfo by viewModel.productInfo.collectAsStateWithLifecycle()
+
             TopBar(
                 trainId = trainId,
-                productInfo = viewModel.getProductInfo(),
-                mapState = mapState,
-                showingMap = showingMap,
+                productInfo = { productInfo },
+                mapState = { mapState },
+                showingMap = { showingMap },
                 showMap = {
                     showingMap = it
                     mapHeight = if (it) (mapWidth / (16f / 9f)).toInt() else 0
                 },
-                onBackClick = { navController.popBackStack() }
+                onBackClick = navController::popBackStack
             )
         },
         modifier = modifier
@@ -319,6 +324,7 @@ fun TrainDetailsScreen(
                 style = JetLimeDefaults.columnStyle(
                     itemSpacing = 16.dp,
                 ),
+                key = { _, item -> item.hashCode() },
                 contentPadding = PaddingValues(16.dp),
                 modifier = Modifier
                     .padding(top = animatedMapHeight)
@@ -485,20 +491,20 @@ private fun setupSpeedLayer(context: Context, style: Style) {
 @Composable
 private fun TopBar(
     trainId: String,
-    productInfo: List<Information>,
-    mapState: TrainDetailsMapState,
-    showingMap: Boolean,
+    productInfo: () -> List<Information>,
+    mapState: () -> TrainDetailsMapState,
+    showingMap: () -> Boolean,
     modifier: Modifier = Modifier,
     showMap: (Boolean) -> Unit,
     onBackClick: () -> Unit
 ) {
     val animatedSpeed by animateIntAsState(
-        targetValue = (mapState as? TrainDetailsMapState.Loaded)?.speed ?: -1,
+        targetValue = (mapState() as? TrainDetailsMapState.Loaded)?.speed ?: -1,
         animationSpec = tween(durationMillis = 800)
     )
 
     val animatedBearing by animateIntAsState(
-        targetValue = (mapState as? TrainDetailsMapState.Loaded)?.bearing ?: -1,
+        targetValue = (mapState() as? TrainDetailsMapState.Loaded)?.bearing ?: -1,
         animationSpec = tween(durationMillis = 800)
     )
 
@@ -513,15 +519,15 @@ private fun TopBar(
         },
         title = {
             var showDialog by remember { mutableStateOf(false) }
-            val info = remember(productInfo) {
-                productInfo.find {
+            val info = remember(productInfo()) {
+                productInfo().find {
                     it.code == TrainInformation.Product.type.toString()
                 }
             }
 
             if (showDialog) {
                 TrainInfoDialog(
-                    info = productInfo,
+                    info = productInfo(),
                     onDismiss = { showDialog = false }
                 )
             }
@@ -536,10 +542,10 @@ private fun TopBar(
                     if (info != null) "${info.description} | $trainId"
                     else "Train: $trainId"
 
-                val title = when (mapState) {
+                val title = when (val state = mapState()) {
                     is TrainDetailsMapState.Loading -> desc
                     is TrainDetailsMapState.Loaded -> {
-                        val speedText = animatedSpeed.toString() + "km/h" + if (mapState.speedIsEstimate) "*" else ""
+                        val speedText = animatedSpeed.toString() + "km/h" + if (state.speedIsEstimate) "*" else ""
 
                         if ((desc + speedText).length >= 15) "$desc\n$speedText"
                         else "$desc | $speedText"
@@ -554,7 +560,7 @@ private fun TopBar(
         },
         actions = {
             AnimatedVisibility(
-                visible = mapState !is TrainDetailsMapState.Loading,
+                visible = mapState() !is TrainDetailsMapState.Loading,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut()
             ) {
@@ -565,13 +571,17 @@ private fun TopBar(
                     Icon(
                         painter = painterResource(id = R.drawable.compass),
                         tint = TopAppBarDefaults.topAppBarColors().titleContentColor,
-                        contentDescription = "Compass"
+                        contentDescription = "Compass",
+                        modifier = Modifier
+                            .size(32.dp)
                     )
 
                     Icon(
                         painter = painterResource(id = R.drawable.needle_tip),
                         tint = MaterialTheme.colorScheme.primary,
-                        contentDescription = null // decorative
+                        contentDescription = null, // decorative
+                        modifier = Modifier
+                            .size(32.dp)
                     )
                 }
             }
@@ -579,7 +589,7 @@ private fun TopBar(
             Spacer(modifier = Modifier.width(8.dp))
 
             FilledIconToggleButton(
-                checked = showingMap,
+                checked = showingMap(),
                 onCheckedChange = { showMap(it) }
             ) {
                 Icon(

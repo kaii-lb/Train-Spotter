@@ -19,6 +19,7 @@ import com.pushpal.jetlime.ItemsList
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -57,7 +59,6 @@ class TrainDetailsViewModel @Inject constructor(
     private val _announcements = MutableStateFlow(emptyMap<String, LocationDetails>())
     private var trainId = ""
     private var currentCoords = LatLng()
-    private var apiKey: ApiKey = ApiKey.NotAvailable
     private var listenJob: Job? = null
 
     private val _refreshing = MutableStateFlow(true)
@@ -68,7 +69,7 @@ class TrainDetailsViewModel @Inject constructor(
 
     private val placeholderItems = (0..9).map {
         LocationDetails(
-            name = "",
+            name = it.toString(),
             signature = "",
             track = "",
             arrivalTime = "",
@@ -84,6 +85,17 @@ class TrainDetailsViewModel @Inject constructor(
         )
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val productInfo = _announcements.map { map ->
+        map.values.flatMap { details ->
+            details.productInfo
+        }.distinct()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
+        initialValue = emptyList()
+    )
+
     val items = combine(_announcements, _refreshing) { announcements, refreshing ->
         ItemsList(
             if (refreshing && announcements.isEmpty()) {
@@ -97,12 +109,6 @@ class TrainDetailsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ItemsList(placeholderItems)
     )
-
-    init {
-        viewModelScope.launch {
-            settings.user.getApiKey().collect { apiKey = it }
-        }
-    }
 
     private suspend fun fetchData(trainId: String): Boolean {
         try {
@@ -250,11 +256,6 @@ class TrainDetailsViewModel @Inject constructor(
             }
         }
     }
-
-    fun getProductInfo() =
-        _announcements.value.values.flatMap {
-            it.productInfo
-        }.distinct()
 
     fun cancel() {
         _refreshing.value = false
