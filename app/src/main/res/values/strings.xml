@@ -37,10 +37,12 @@
 
     <!--  Stop/Train Search  -->
     <string name="search">Search</string>
-    <string name="search_transport_modes">Transport By: %s</string>
+    <string name="search_transport_modes">Transport by: %s</string>
     <string name="search_invalid_input">Couldn\'t find a match</string>
     <string name="search_train_route">%1$s to %2$s</string>
     <string name="search_train_time">Time: %1$s to %2$s</string>
+    <string name="search_station_not_found">Station not found</string>
+    <string name="search_train_not_found">Train not found</string>
 
     <!--  Train Info  -->
     <string name="train_info">Train Info</string>
@@ -58,6 +60,7 @@
     <string name="reached_location">Reached %s</string>
     <string name="stopped">Stopped</string>
     <string name="history">History</string>
+    <string name="results">Results</string>
 
     <!--  Settings  -->
     <string name="settings">Settings</string>
@@ -83,4 +86,12 @@
     <string name="permission_notifications_not_granted">Push notifications disabled</string>
     <string name="permission_notifications">Notifications</string>
     <string name="permission_notifications_desc">Push notifications permission is required in order to display a progress status notification. If this behaviour is not desired just ignore this permission request.</string>
+
+    <!-- Transport Modes -->
+    <string name="transport_bus">Bus</string>
+    <string name="transport_train">Train</string>
+    <string name="transport_taxi">Taxi</string>
+    <string name="transport_metro">Metro</string>
+    <string name="transport_tram">Tram</string>
+    <string name="transport_boat">Boat</string>
 </resources>

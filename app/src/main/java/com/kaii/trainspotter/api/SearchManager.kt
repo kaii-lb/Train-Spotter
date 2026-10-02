@@ -1,9 +1,12 @@
 package com.kaii.trainspotter.api
 
+import android.util.Log
 import com.kaii.trainspotter.domain.SearchDescription
 import com.kaii.trainspotter.domain.SearchMode
 import com.kaii.trainspotter.domain.SearchName
 import com.kaii.trainspotter.domain.SearchResult
+import com.kaii.trainspotter.domain.TransportMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,17 +22,18 @@ class SearchManager @Inject constructor(
     private val _searchMode = MutableStateFlow(SearchMode.Station)
     private val _results = MutableStateFlow(emptyList<SearchResult>())
     private val _isSearching = MutableStateFlow(false)
-    private var currentSearchText = ""
+    private var lastCompleted: Pair<String, SearchMode>? = null
 
     @OptIn(ExperimentalUuidApi::class)
     private val placeholders =
         (0..9).map {
             SearchResult(
                 name = SearchName.Station(""),
-                description = SearchDescription.Station(""),
+                description = SearchDescription.Station(modes = listOf(TransportMode.Train)),
                 id = Uuid.random().toString(),
                 hasError = false,
-                mode = _searchMode.value
+                mode = _searchMode.value,
+                transportModes = listOf(TransportMode.Train)
             )
         }
 
@@ -37,56 +41,72 @@ class SearchManager @Inject constructor(
     val results = _results.asStateFlow()
     val searchMode = _searchMode.asStateFlow()
 
-    fun clear() {
-        currentSearchText = ""
-        _results.value = emptyList()
-    }
-
     fun changeMode(mode: SearchMode) {
+        if (mode == _searchMode.value) return
         _searchMode.value = mode
+        _results.value = emptyList()
+        lastCompleted = null
     }
 
-    suspend fun search(name: String) = withContext(Dispatchers.IO) {
-        if (name == currentSearchText) return@withContext
+    suspend fun search(raw: String) {
+        val query = raw.trim()
+        val mode = _searchMode.value
 
-        if (name == "") {
+        if (query.isEmpty()) {
+            lastCompleted = null
             _results.value = emptyList()
-            return@withContext
+            _isSearching.value = false
+            return
         }
 
-        val snapshot = _results.value
-        currentSearchText = name
+        if (lastCompleted == query to mode) return
 
-        _results.value = placeholders
         _isSearching.value = true
+        _results.value = placeholders
 
-        if (_searchMode.value == SearchMode.Station) {
-            val new = realtimeClient.findStopGroups(name = name.trim())?.stopGroups?.map { stop ->
+        try {
+            lastCompleted = query to mode
+            _results.value = withContext(Dispatchers.IO) {
+                if (mode == SearchMode.Station) searchStations(query)
+                else searchTrain(query)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _results.value = emptyList()
+
+            Log.e(SearchMode::class.qualifiedName, "Failed to search! ${e.message}")
+            e.printStackTrace()
+        }
+
+        _isSearching.value = false
+    }
+
+    private suspend fun searchStations(query: String): List<SearchResult> =
+        realtimeClient.findStopGroups(name = query)?.stopGroups
+            ?.map { stop ->
                 SearchResult(
                     id = stop.id,
                     name = SearchName.Station(name = stop.name),
                     description = SearchDescription.Station(
-                        modeNames = stop.transportModes.joinToString {
-                            it.name
-                        }
+                        modes = stop.transportModes
                     ),
                     hasError = stop.stops.any { it.alerts.isNotEmpty() },
-                    mode = SearchMode.Station
+                    mode = SearchMode.Station,
+                    transportModes = stop.transportModes
                 )
-            } ?: emptyList()
-
-            _results.value = new - snapshot.toSet() - placeholders.toSet()
-        } else {
-            val new = trafikverketClient.getRouteDataForId(trainId = name.trim())?.values ?: emptySet()
-
-            if (new.isEmpty()) {
-                _results.value = emptyList()
-                _isSearching.value = false
-                return@withContext
             }
+            ?.distinctBy { it.id }
+            ?: emptyList()
 
-            val result = SearchResult(
-                id = name.trim(),
+    private suspend fun searchTrain(query: String): List<SearchResult> {
+        val new = trafikverketClient.getRouteDataForId(trainId = query)?.values ?: return emptyList()
+
+        if (new.isEmpty()) return emptyList()
+
+        return listOf(
+            SearchResult(
+                id = query.trim(),
                 name = SearchName.TrainRoute(
                     start = new.first().name,
                     end = new.last().name
@@ -104,12 +124,9 @@ class SearchManager @Inject constructor(
                                     || deviation.text.lowercase().contains("inställd")
                         }
                     },
-                mode = SearchMode.Train
+                mode = SearchMode.Train,
+                transportModes = listOf(TransportMode.Train)
             )
-
-            _results.value = listOf(result)
-        }
-
-        _isSearching.value = false
+        )
     }
 }

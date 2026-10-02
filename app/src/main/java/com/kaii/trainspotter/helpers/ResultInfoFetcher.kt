@@ -7,6 +7,8 @@ import androidx.compose.ui.platform.LocalResources
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.domain.SearchDescription
 import com.kaii.trainspotter.domain.SearchName
+import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.presentation.label
 
 class ResultInfoFetcher(
     private val resources: Resources
@@ -17,13 +19,15 @@ class ResultInfoFetcher(
     }
 
     fun getFromDescription(description: SearchDescription) = when (description) {
-        is SearchDescription.Station -> getStationDescription(description.modeNames)
+        is SearchDescription.Station -> getStationDescription(description.modes)
         is SearchDescription.TrainTime -> getTrainTime(description.departure, description.arrival)
     }
 
-    private fun getStationDescription(modeNames: String): String = resources.getString(
+    private fun getStationDescription(modes: List<TransportMode>): String = resources.getString(
         R.string.search_transport_modes,
-        modeNames
+        modes.joinToString {
+            resources.getString(it.label)
+        }
     )
 
     private fun getTrainRoute(

@@ -13,7 +13,7 @@ class HistorySettingsImpl(
     private val context: Context,
     private val scope: CoroutineScope
 ) : Preference(context, scope) {
-    private val searchHistory = stringPreferencesKey("history_search_list")
+    private val searchHistory = stringPreferencesKey("history_search_items")
 
     fun getSearchHistory() = context.datastore.data.map {
         val jsonHistory = it[searchHistory] ?: "[]"
@@ -31,7 +31,7 @@ class HistorySettingsImpl(
             }
             history.add(0, search)
 
-            it[searchHistory] = Json.encodeToString(history.take(5))
+            it[searchHistory] = Json.encodeToString(history.take(10))
         }
     }
 }

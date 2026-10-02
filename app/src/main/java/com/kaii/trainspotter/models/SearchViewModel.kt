@@ -7,6 +7,8 @@ import com.kaii.trainspotter.datastore.Settings
 import com.kaii.trainspotter.domain.SearchMode
 import com.kaii.trainspotter.domain.SearchResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -17,6 +19,8 @@ class SearchViewModel @Inject constructor(
     private val searchManager: SearchManager,
     private val settings: Settings
 ) : ViewModel() {
+    private var searchJob: Job? = null
+
     val isSearching = searchManager.isSearching
     val searchResults = searchManager.results
     val searchMode = searchManager.searchMode
@@ -27,10 +31,11 @@ class SearchViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    fun clear() = searchManager.clear()
-
     fun search(query: String) {
-        viewModelScope.launch {
+        val previous = searchJob
+        searchJob = viewModelScope.launch {
+            // quit previous job as to not show stale results in the current run
+            previous?.cancelAndJoin()
             searchManager.search(query)
         }
     }

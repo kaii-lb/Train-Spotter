@@ -8,5 +8,6 @@ data class SearchResult(
     val description: SearchDescription,
     val id: String,
     val hasError: Boolean,
-    val mode: SearchMode
+    val mode: SearchMode,
+    val transportModes: List<TransportMode>
 )

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 sealed interface SearchDescription {
     @Serializable
     data class Station(
-        val modeNames: String
+        val modes: List<TransportMode>
     ) : SearchDescription
 
     @Serializable
