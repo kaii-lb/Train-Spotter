@@ -29,6 +29,7 @@
     <string name="timetable_alert">Alert</string>
     <string name="timetable_train_canceled">This train has been canceled</string>
     <string name="timetable_delay">Delay: %s</string>
+    <string name="timetable_advance">Advance: %s</string>
     <string name="timetable_time_info">Time Info</string>
     <string name="timetable_time_info_arrival_advertised">Arrival: %s</string>
     <string name="timetable_time_info_arrival_actual">Actual Arrival: %s</string>
