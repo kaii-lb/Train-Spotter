@@ -288,7 +288,7 @@ fun TimeTableElement(
                             var showDialog by remember { mutableStateOf(false) }
 
                             if (showDialog) {
-                                TrafikAlertDialog(
+                                AlertBottomSheet(
                                     alerts = item.alerts,
                                     onDismiss = {
                                         showDialog = false

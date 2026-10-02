@@ -255,7 +255,7 @@ fun TrainDetailTableElement(
                         var showDialog by remember { mutableStateOf(false) }
 
                         if (showDialog) {
-                            TrafikAlertDialog(
+                            AlertBottomSheet(
                                 alerts = locationDetails.deviations,
                                 onDismiss = {
                                     showDialog = false

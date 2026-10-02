@@ -27,6 +27,7 @@
     <string name="timetable_arrivals">Arrivals</string>
     <string name="timetable_departures">Departures</string>
     <string name="timetable_alert">Alert</string>
+    <string name="timetable_alerts">Alerts</string>
     <string name="timetable_train_canceled">This train has been canceled</string>
     <string name="timetable_delay">Delay: %s</string>
     <string name="timetable_advance">Advance: %s</string>
