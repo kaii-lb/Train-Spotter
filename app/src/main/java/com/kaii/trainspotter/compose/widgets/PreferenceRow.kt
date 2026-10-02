@@ -43,6 +43,7 @@ import com.kaii.trainspotter.R
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.presentation.RowPosition
 
 @Composable
 fun PreferencesSeparatorText(
@@ -56,7 +57,7 @@ fun PreferencesSeparatorText(
         color = MaterialTheme.colorScheme.primary,
         textAlign = align,
         modifier = modifier
-            .padding(12.dp)
+            .padding(vertical = 12.dp)
             .fillMaxWidth()
     )
 }
@@ -66,6 +67,7 @@ fun PreferenceRow(
     title: String,
     @DrawableRes icon: Int,
     modifier: Modifier = Modifier,
+    position: RowPosition,
     containerColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     fontSize: TextUnit = TextStylingConstants.SIZE_MEDIUM,
@@ -75,7 +77,7 @@ fun PreferenceRow(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 80.dp)
-            .clip(shape = RoundedCornerShape(RoundedCornerConstants.ROUNDING_LARGE))
+            .clip(shape = position.shape)
             .background(containerColor)
             .padding(all = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -110,27 +112,51 @@ fun PreferenceRow(
 fun ApiKeyPreferenceRow(
     initialKey: ApiKey,
     isRealtimeKey: Boolean,
+    position: RowPosition,
     setKey: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    PreferenceRow(
-        title = stringResource(
-            id =
-                if (isRealtimeKey) R.string.login_api_key_realtime
-                else R.string.login_api_key_trafikverket
-        ),
-        icon = R.drawable.key,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(space = 8.dp),
         modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 80.dp)
+            .clip(shape = position.shape)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(all = 12.dp)
     ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.key),
+                contentDescription = "Settings row icon",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .size(size = 28.dp)
+            )
+
+            Spacer(modifier = Modifier.width(width = 16.dp))
+
+            Text(
+                text = stringResource(
+                    id =
+                        if (isRealtimeKey) R.string.login_api_key_realtime
+                        else R.string.login_api_key_trafikverket
+                ),
+                fontSize = TextStylingConstants.SIZE_MEDIUM,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
         var placeholderKey by remember(initialKey) {
             mutableStateOf(
                 if (isRealtimeKey) (initialKey as? ApiKey.Available)?.realtimeKey ?: ""
                 else (initialKey as? ApiKey.Available)?.trafikverketKey ?: ""
             )
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         Row {
             TextField(
@@ -194,6 +220,7 @@ fun TextPreferencesRow(
     title: String,
     text: String,
     @DrawableRes icon: Int,
+    position: RowPosition,
     modifier: Modifier = Modifier,
     clearBackground: Boolean = false,
     onClick: () -> Unit
@@ -203,11 +230,9 @@ fun TextPreferencesRow(
         icon = icon,
         fontSize = TextStylingConstants.SIZE_LARGE,
         containerColor = if (clearBackground) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
+        position = position,
         modifier = modifier
-            .clip(RoundedCornerShape(RoundedCornerConstants.ROUNDING_EXTRA_LARGE))
-            .clickable {
-                onClick()
-            }
+            .clickable(onClick = onClick)
     ) {
         Text(
             text = text,

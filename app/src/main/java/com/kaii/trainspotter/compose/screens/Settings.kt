@@ -34,6 +34,7 @@ import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.models.SettingsViewModel
+import com.kaii.trainspotter.presentation.RowPosition
 
 @Composable
 fun Settings(
@@ -79,10 +80,12 @@ fun Settings(
                     text = stringResource(id = R.string.login)
                 )
             }
+
             item {
                 ApiKeyPreferenceRow(
                     initialKey = apiKey(),
                     isRealtimeKey = true,
+                    position = RowPosition.Top,
                     setKey = { new ->
                         if (new.isBlank()) {
                             onSetApiKey(ApiKey.NotAvailable)
@@ -108,6 +111,7 @@ fun Settings(
                 ApiKeyPreferenceRow(
                     initialKey = apiKey(),
                     isRealtimeKey = false,
+                    position = RowPosition.Bottom,
                     setKey = { new ->
                         if (new.isBlank()) {
                             onSetApiKey(ApiKey.NotAvailable)
@@ -145,6 +149,7 @@ fun Settings(
                     title = stringResource(id = R.string.settings_developer),
                     text = "kaii-lb",
                     icon = R.drawable.code,
+                    position = RowPosition.Top
                 ) {
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         data = "https://github.com/kaii-lb".toUri()
@@ -159,7 +164,9 @@ fun Settings(
                     title = stringResource(id = R.string.settings_version),
                     text = version,
                     icon = R.drawable.info,
-                ) {}
+                    position = RowPosition.Bottom,
+                    onClick = {}
+                )
             }
 
             item {
@@ -174,6 +181,7 @@ fun Settings(
                     title = stringResource(id = R.string.service_testing),
                     text = stringResource(id = R.string.service_testing_desc),
                     icon = R.drawable.bug_report,
+                    position = RowPosition.Single
                 ) {
                     navController.navigate(Screens.ServiceTesting)
                 }

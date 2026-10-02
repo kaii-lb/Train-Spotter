@@ -43,6 +43,7 @@ import com.kaii.trainspotter.compose.widgets.TextPreferencesRow
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.presentation.RowPosition
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
@@ -95,7 +96,8 @@ fun ServiceTesting(
             item {
                 PreferenceRow(
                     title = stringResource(id = R.string.service_testing_train_id),
-                    icon = R.drawable.id_card
+                    icon = R.drawable.id_card,
+                    position = RowPosition.Single
                 ) {
                     TextField(
                         value = trainId,
@@ -130,7 +132,8 @@ fun ServiceTesting(
                     title = stringResource(id = R.string.service_testing_start),
                     icon = R.drawable.play_arrow,
                     text = stringResource(id = R.string.service_testing_start_desc),
-                    clearBackground = true
+                    clearBackground = true,
+                    position = RowPosition.Top
                 ) {
                     if (trainId.isNotBlank()) {
                         trainUpdateConnection.service?.stopListening()
@@ -170,7 +173,8 @@ fun ServiceTesting(
                     title = stringResource(id = R.string.service_testing_stop),
                     icon = R.drawable.stop,
                     text = stringResource(id = R.string.service_testing_stop_desc),
-                    clearBackground = true
+                    clearBackground = true,
+                    position = RowPosition.Bottom
                 ) {
                     trainUpdateConnection.service?.stopListening()
                     context.unbindService(trainUpdateConnection)
