@@ -2,267 +2,179 @@
 
 package com.kaii.trainspotter.models
 
-import android.app.NotificationManager
-import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kaii.trainspotter.R
-import com.kaii.trainspotter.TrainUpdateConnection
-import com.kaii.trainspotter.api.TrafikverketClient
-import com.kaii.trainspotter.api.TrainPositionClient
-import com.kaii.trainspotter.datastore.ApiKey
-import com.kaii.trainspotter.datastore.Settings
+import com.kaii.trainspotter.data.TrainTracker
 import com.kaii.trainspotter.domain.LocationDetails
+import com.kaii.trainspotter.domain.tracking.RouteState
 import com.kaii.trainspotter.helpers.ServerConstants
 import com.pushpal.jetlime.ItemsList
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import org.maplibre.android.geometry.LatLng
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 sealed interface TrainDetailsMapState {
-    object Loading : TrainDetailsMapState
+    data object Loading : TrainDetailsMapState
 
     data class Loaded(
         val speed: Int,
         val speedIsEstimate: Boolean,
         val bearing: Int,
-        val coords: LatLng
+        val latitude: Double,
+        val longitude: Double
     ) : TrainDetailsMapState
 }
 
 @HiltViewModel
 class TrainDetailsViewModel @Inject constructor(
-    private val trafikverketClient: TrafikverketClient,
-    private val trainPositionClient: TrainPositionClient,
-    private val settings: Settings
+    private val tracker: TrainTracker
 ) : ViewModel() {
-    private val _announcements = MutableStateFlow(emptyMap<String, LocationDetails>())
-    private var trainId = ""
-    private var currentCoords = LatLng()
-    private var listenJob: Job? = null
+    private var trainId: String? = null
+    private var scrollJob: Job? = null
 
-    private val _refreshing = MutableStateFlow(true)
-    val isRefreshing = _refreshing.asStateFlow()
+    private val userIsRefreshing = MutableStateFlow(false)
 
-    private val _mapState = MutableStateFlow<TrainDetailsMapState>(TrainDetailsMapState.Loading)
-    val mapState = _mapState.asStateFlow()
+    private val scrollChannel = Channel<Int>(Channel.BUFFERED)
+    val scrollEvents: Flow<Int> = scrollChannel.receiveAsFlow()
 
-    private val placeholderItems = (0..9).map {
-        LocationDetails(
-            name = it.toString(),
-            signature = "",
-            track = "",
-            arrivalTime = "",
-            departureTime = "",
-            estimatedArrivalTime = null,
-            estimatedDepartureTime = null,
-            timeAtLocation = null,
-            passed = false,
-            delay = "0",
-            productInfo = emptyList(),
-            deviations = emptyList(),
-            canceled = false
-        )
-    }
+    private val route = tracker.state.map { it.routeState }.distinctUntilChanged()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val productInfo = _announcements.map { map ->
-        map.values.flatMap { details ->
-            details.productInfo
-        }.distinct()
+    val items = route.map { route ->
+        when (route) {
+            is RouteState.Loaded -> ItemsList(route.stops)
+            RouteState.Idle, RouteState.Loading -> ItemsList(placeholderItems)
+            RouteState.Failed -> ItemsList(emptyList())
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
-        initialValue = emptyList()
-    )
-
-    val items = combine(_announcements, _refreshing) { announcements, refreshing ->
-        ItemsList(
-            if (refreshing && announcements.isEmpty()) {
-                placeholderItems
-            } else {
-                announcements.values.toList()
-            }
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
         initialValue = ItemsList(placeholderItems)
     )
 
-    private suspend fun fetchData(trainId: String): Boolean {
-        try {
-            val new = trafikverketClient.getRouteDataForId(trainId = trainId)
+    val isRefreshing: StateFlow<Boolean> = combine(
+        route.map { it is RouteState.Idle || it is RouteState.Loading },
+        userIsRefreshing
+    ) { loading, refreshing ->
+        loading || refreshing
+    }.distinctUntilChanged().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
+        initialValue = true
+    )
 
-            if (this.trainId != trainId) return false
-
-            if (new.isNullOrEmpty()) {
-                Log.w(TrainDetailsViewModel::class.qualifiedName, "No route data for $trainId (null or empty), keeping previous")
-                return false
-            }
-
-            _announcements.value = new
-            return true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.e(TrainDetailsViewModel::class.qualifiedName, "Failed to fetch route data for $trainId", e)
-            return false
+    val productInfo = route
+        .map { route ->
+            val stops = (route as? RouteState.Loaded)?.stops.orEmpty()
+            stops.flatMap { it.productInfo }.distinct()
         }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
+            initialValue = emptyList()
+        )
+
+    val mapState: StateFlow<TrainDetailsMapState> = tracker.state
+        .map { state ->
+            val position = state.position
+            val coords = position?.coords
+
+            if (position == null || coords == null) {
+                TrainDetailsMapState.Loading
+            } else {
+                TrainDetailsMapState.Loaded(
+                    speed = state.speedKmh ?: 0,
+                    speedIsEstimate = position.speedIsEstimate,
+                    bearing = position.bearing,
+                    latitude = coords.latitude,
+                    longitude = coords.longitude
+                )
+            }
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
+            initialValue = TrainDetailsMapState.Loading
+        )
+
+    override fun onCleared() {
+        trainId?.let(tracker::stop)
     }
 
-    private suspend fun getPositionInfo() {
-        if (trainPositionClient.getCurrentTrainId() == trainId || _announcements.value.isEmpty()) return
+    fun track(trainId: String) {
+        if (tracker.state.value.trainId == trainId) {
+            this.trainId = trainId
+            return
+        }
 
-        _mapState.value = TrainDetailsMapState.Loading
+        this.trainId = trainId
+        tracker.track(trainId)
 
-        trainPositionClient.getStreamingInfo(
-            trainId = trainId
-        ) { info ->
-            val announcements = _announcements.value
-            val lastKey = _announcements.value.keys.lastOrNull()
-            val speed = if (announcements[lastKey]?.passed == true) 0 else info.speed
-            val speedIsEstimate = info.speedIsEstimate
-            val bearing = info.bearing
+        scrollJob?.cancel()
+        scrollJob = viewModelScope.launch {
+            val loaded = tracker.state.mapNotNull { state ->
+                (state.routeState as? RouteState.Loaded)
+            }.firstOrNull() ?: return@launch
 
-            if (info.coords != null) {
-                currentCoords = LatLng(info.coords.latitude, info.coords.longitude)
-            }
-
-            _mapState.value = TrainDetailsMapState.Loaded(
-                speed = speed,
-                speedIsEstimate = speedIsEstimate,
-                bearing = bearing,
-                coords = currentCoords
+            scrollChannel.send(
+                element = loaded.stops.indexOfLast { it.passed }.coerceAtLeast(0)
             )
         }
     }
 
-    private suspend fun setupService(
-        context: Context,
-        connection: TrainUpdateConnection
-    ) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (!notificationManager.areNotificationsEnabled()) return
+    fun onRefresh() {
+        if (userIsRefreshing.value) return
 
-        val key = withTimeoutOrNull(3.seconds) {
-            settings.user.getApiKey().first { it != ApiKey.NotAvailable }
-        }
+        viewModelScope.launch {
+            userIsRefreshing.value = true
+            try {
+                coroutineScope {
+                    val minimumSpinner = launch {
+                        delay(ServerConstants.REFRESH_TIME.milliseconds)
+                    }
 
-        if (key == null) {
-            Log.w(TrainDetailsViewModel::class.qualifiedName, "No API key available, skipping notification service")
-            return
-        }
-
-        var service = connection.service
-        var tries = 0
-        while (service == null && tries < 20) {
-            delay(250.milliseconds)
-            service = connection.service
-            tries += 1
-        }
-
-        if (service == null) {
-            Log.w(TrainDetailsViewModel::class.qualifiedName, "Service never connected, skipping notification")
-            return
-        }
-
-        service.setup(
-            apiKey = key,
-            trainId = trainId,
-            initialTitle = _announcements.value.values.firstOrNull {
-                !it.passed
-            }?.name ?: context.resources.getString(R.string.loading),
-            initialSpeed = "0km/h"
-        )
-        service.startListening()
-    }
-
-    fun startListening(
-        context: Context,
-        trainId: String,
-        connection: TrainUpdateConnection,
-        onScroll: (index: Int) -> Unit
-    ) {
-        if (this.trainId == trainId && listenJob?.isActive == true) return
-
-        listenJob?.cancel()
-        trainPositionClient.cancel()
-
-        _announcements.value = emptyMap()
-        _mapState.value = TrainDetailsMapState.Loading
-
-        this.trainId = trainId
-        _refreshing.value = true
-
-        listenJob = viewModelScope.launch(Dispatchers.IO) {
-            var attempts = 0
-            while (isActive && !fetchData(trainId = trainId) && attempts < 5) {
-                attempts += 1
-                delay(2.seconds)
-            }
-            _refreshing.value = false
-
-            val announcements = _announcements.value
-            if (announcements.isNotEmpty()) {
-                announcements.values.maxByOrNull { it.timeAtLocation ?: "" }?.let { passed ->
-                    onScroll(announcements.values.indexOf(passed))
+                    tracker.refresh()
+                    minimumSpinner.join()
                 }
-            }
-
-            launch { getPositionInfo() }
-            launch { setupService(context = context, connection = connection) }
-
-            while (isActive) {
-                delay(ServerConstants.UPDATE_TIME.milliseconds)
-                fetchData(trainId = trainId)
+            } finally {
+                userIsRefreshing.value = false
             }
         }
     }
 
-    fun forceRefresh() = viewModelScope.launch(Dispatchers.IO) {
-        _refreshing.value = true
-
-        try {
-            fetchData(trainId = trainId)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            Log.e(TrainDetailsViewModel::class.qualifiedName, "Failed to force a refresh. ${e.message}")
-        } finally {
-            withContext(NonCancellable) {
-                delay(ServerConstants.REFRESH_TIME.milliseconds)
-                _refreshing.value = false
-            }
+    private companion object {
+        val placeholderItems = (0..9).map {
+            LocationDetails(
+                name = it.toString(),
+                signature = "",
+                track = "",
+                arrivalTime = "",
+                departureTime = "",
+                estimatedArrivalTime = null,
+                estimatedDepartureTime = null,
+                timeAtLocation = null,
+                passed = false,
+                delay = "0",
+                productInfo = emptyList(),
+                deviations = emptyList(),
+                canceled = false
+            )
         }
-    }
-
-    fun cancel() {
-        _refreshing.value = false
-        trainPositionClient.cancel()
-        _announcements.value = emptyMap()
-
-        trainId = ""
-        currentCoords = LatLng()
     }
 }

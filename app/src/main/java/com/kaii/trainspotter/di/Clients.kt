@@ -11,6 +11,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 @Module
@@ -25,16 +26,24 @@ object Clients {
 
     @Provides
     @Singleton
-    fun provideTrafikverketClient(): TrafikverketClient =
+    fun provideTrafikverketClient(
+        @ApiHttpClient httpClient: OkHttpClient,
+    ): TrafikverketClient =
         TrafikverketClient(
-            apiKey = ApiKey.NotAvailable
+            apiKey = ApiKey.NotAvailable,
+            httpClient = httpClient
         )
 
     @Provides
     @Singleton
-    fun providerTrainPositionClient(): TrainPositionClient =
+    fun providerTrainPositionClient(
+        @ApiHttpClient http: OkHttpClient,
+        @StreamHttpClient streamClient: OkHttpClient
+    ): TrainPositionClient =
         TrainPositionClient(
-            apiKey = ApiKey.NotAvailable
+            apiKey = ApiKey.NotAvailable,
+            httpClient = http,
+            streamClient = streamClient
         )
 
     @Provides

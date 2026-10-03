@@ -159,9 +159,7 @@ class MainActivity : ComponentActivity() {
             }
 
             composable<Screens.ServiceTesting> {
-                ServiceTesting(
-                    apiKey = { apiKey }
-                )
+                ServiceTesting()
             }
         }
     }

@@ -33,3 +33,9 @@ fun formatDelay(
 
     return prefix + formatted
 }
+
+fun String.xmlEscaped(): String =
+    replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")

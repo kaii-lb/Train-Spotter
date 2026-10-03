@@ -96,4 +96,13 @@
     <string name="transport_metro">Metro</string>
     <string name="transport_tram">Tram</string>
     <string name="transport_boat">Boat</string>
+
+    <!--  Service  -->
+    <string name="service_channel_name">Train Spotter Channel</string>
+    <string name="service_channel_description">Posts a notification with the currently tracked train\'s details</string>
+    <string name="service_delay">with %s delay</string>
+    <string name="service_speed">%dkm/h</string>
+    <string name="service_speed_estimate">%dkm/h*</string>
+    <string name="service_notification_title">Train: %s</string>
+    <string name="service_notification_hide">Hide</string>
 </resources>

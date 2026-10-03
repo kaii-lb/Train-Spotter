@@ -1,7 +1,5 @@
 package com.kaii.trainspotter.compose.screens
 
-import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,7 +15,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,45 +28,26 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.kaii.lavender.snackbars.LavenderSnackbarController
 import com.kaii.lavender.snackbars.LavenderSnackbarEvents
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.TrainUpdateConnection
-import com.kaii.trainspotter.TrainUpdateService
 import com.kaii.trainspotter.compose.widgets.PreferenceRow
 import com.kaii.trainspotter.compose.widgets.PreferencesSeparatorText
 import com.kaii.trainspotter.compose.widgets.TextPreferencesRow
-import com.kaii.trainspotter.datastore.ApiKey
+import com.kaii.trainspotter.data.TrainUpdateService
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.TextStylingConstants
+import com.kaii.trainspotter.models.ServiceTestingViewModel
 import com.kaii.trainspotter.presentation.RowPosition
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun ServiceTesting(
-    apiKey: () -> ApiKey
+    viewModel: ServiceTestingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val trainUpdateConnection = remember { TrainUpdateConnection() }
-    DisposableEffect(Unit) {
-        context.startForegroundService(
-            Intent(context, TrainUpdateService::class.java).also { intent ->
-                context.bindService(intent, trainUpdateConnection, Context.BIND_AUTO_CREATE)
-            }
-        )
-
-        onDispose {
-            context.startService(
-                Intent(context, TrainUpdateService::class.java).apply {
-                    action = TrainUpdateService.ACTION_HIDE_NOTIF
-                }
-            )
-            context.unbindService(trainUpdateConnection)
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -136,21 +114,8 @@ fun ServiceTesting(
                     position = RowPosition.Top
                 ) {
                     if (trainId.isNotBlank()) {
-                        trainUpdateConnection.service?.stopListening()
-
-                        coroutineScope.launch {
-                            do {
-                                delay(1.seconds)
-                            } while (trainUpdateConnection.service == null)
-
-                            trainUpdateConnection.service!!.setup(
-                                apiKey = apiKey(),
-                                trainId = trainId,
-                                initialTitle = "Loading...",
-                                initialSpeed = "0km/h"
-                            )
-                            trainUpdateConnection.service!!.startListening()
-                        }
+                        viewModel.start(trainId.trim())
+                        TrainUpdateService.start(context)
                     } else {
                         coroutineScope.launch {
                             val message = resources.getString(R.string.service_testing_train_id_invalid)
@@ -167,18 +132,14 @@ fun ServiceTesting(
             }
 
             item {
-                val context = LocalContext.current
-
                 TextPreferencesRow(
                     title = stringResource(id = R.string.service_testing_stop),
                     icon = R.drawable.stop,
                     text = stringResource(id = R.string.service_testing_stop_desc),
                     clearBackground = true,
-                    position = RowPosition.Bottom
-                ) {
-                    trainUpdateConnection.service?.stopListening()
-                    context.unbindService(trainUpdateConnection)
-                }
+                    position = RowPosition.Bottom,
+                    onClick = viewModel::stop
+                )
             }
         }
     }

@@ -6,11 +6,19 @@ import com.kaii.trainspotter.domain.TrainPosition
 import com.kaii.trainspotter.domain.TrainPositionMini
 import com.kaii.trainspotter.domain.TrainPositionResponseHolder
 import com.kaii.trainspotter.domain.TrainPositionResult
-import com.kaii.trainspotter.domain.WGS84Coordinates
+import com.kaii.trainspotter.helpers.xmlEscaped
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -20,52 +28,140 @@ import okhttp3.coroutines.executeAsync
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
-import kotlin.math.PI
-import kotlin.math.asin
-import kotlin.math.cos
-import kotlin.math.floor
-import kotlin.math.sin
-import kotlin.math.sqrt
+import java.io.IOException
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
-private const val TAG = "com.kaii.trainspotter.api.TrainPositionClient"
-
 class TrainPositionClient(
-    private var apiKey: ApiKey
+    @Volatile private var apiKey: ApiKey,
+    private val httpClient: OkHttpClient,
+    private val streamClient: OkHttpClient,
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10.minutes)
-        .readTimeout(10.minutes)
-        .callTimeout(10.minutes)
-        .webSocketCloseTimeout(10.minutes)
-        .build()
+    private companion object {
+        private val TAG = TrainPositionClient::class.qualifiedName
 
-    private val endpoint = "https://api.trafikinfo.trafikverket.se/v2/data.json"
-
-    private var source: EventSource? = null
-    private val earthRadius = 6371.2 // kilometers
-
-    private var previousCoords = WGS84Coordinates(0.0, 0.0, 0)
-    private var previousSpeeds = mutableListOf(-1)
-
-    private var _currentTrainId = ""
-
-    fun setApiKey(key: ApiKey) {
-        apiKey = key
+        private const val ENDPOINT = "https://api.trafikinfo.trafikverket.se/v2/data.json"
     }
 
-    private fun getTrainPosition(
-        trainId: String,
-        apiKey: String
-    ) = """
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun setApiKey(key: ApiKey) { apiKey = key }
+
+    @OptIn(ExperimentalTime::class)
+    fun positions(trainId: String): Flow<TrainPositionMini> = flow {
+        val key = (apiKey as? ApiKey.Available)?.trafikverketKey
+            ?: throw IllegalStateException("Trafikverket API key is not available")
+
+        val estimator = SpeedEstimator()
+
+        val initial = fetchInitial(trainId, key)
+        val sseUrl = initial.info?.sseUrl ?: throw IOException("No SSE url returned for train $trainId")
+
+        initial.trainPosition.pickCurrent()?.let {
+            emit(it.toMini(estimator))
+        }
+
+        emitAll(
+            events(sseUrl).mapNotNull { data ->
+                decode(data)?.pickCurrent()?.toMini(estimator)
+            }
+        )
+    }
+
+    private suspend fun fetchInitial(trainId: String, key: String): TrainPositionResult {
+        val request = Request.Builder()
+            .url(ENDPOINT)
+            .post(
+                body = positionQuery(
+                    trainId = trainId,
+                    apiKey = key
+                ).toRequestBody("application/xml".toMediaType()))
+            .build()
+
+        val body = httpClient.newCall(request).executeAsync().use { response ->
+            if (!response.isSuccessful) throw IOException("Position request failed: HTTP ${response.code}")
+            response.body.string()
+        }
+
+        return json.decodeFromString<TrainPositionResponseHolder>(body).response.result.firstOrNull()
+            ?: throw IOException("Empty position response for train $trainId")
+    }
+
+    private fun events(url: String): Flow<String> = callbackFlow {
+        val request = Request.Builder().url(url).build()
+
+        val source = EventSources.createFactory(streamClient).newEventSource(
+            request,
+            object : EventSourceListener() {
+                override fun onOpen(eventSource: EventSource, response: okhttp3.Response) {
+                    Log.d(TAG, "SSE connection opened")
+                }
+
+                override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
+                    trySend(data)
+                }
+
+                override fun onClosed(eventSource: EventSource) {
+                    Log.d(TAG, "SSE connection closed by server")
+                    close()
+                }
+
+                override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
+                    close(t ?: IOException("SSE failed" + (response?.let { " (HTTP ${it.code})" } ?: "")))
+                }
+            }
+        )
+
+        awaitClose { source.cancel() }
+    }.conflate()
+
+    private fun decode(data: String): List<TrainPosition>? = try {
+        json.decodeFromString<TrainPositionResponseHolder>(data).response.result.firstOrNull()?.trainPosition
+    } catch (e: SerializationException) {
+        Log.w(TAG, "Ignoring undecodable SSE payload: ${e.message}")
+        null
+    }
+
+    @OptIn(ExperimentalTime::class)
+    private fun List<TrainPosition>.pickCurrent(): TrainPosition? {
+        val today = Clock.System.now()
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+            .date
+            .format(LocalDate.Formats.ISO)
+
+        return firstOrNull { it.timeStamp?.startsWith(today) == true } ?: firstOrNull()
+    }
+
+    private fun TrainPosition.toMini(estimator: SpeedEstimator): TrainPositionMini {
+        val coords =
+            if (position != null && timeStamp != null) position.toCoords(timeStamp)
+            else null
+
+        val reportedSpeed = speed
+        val resolvedSpeed = reportedSpeed
+            ?: coords?.let {
+                estimator.update(
+                    latitude = it.latitude,
+                    longitude = it.longitude,
+                    timestamp = it.timestamp.toDouble()
+                )
+            }
+            ?: -1
+
+        return TrainPositionMini(
+            speed = resolvedSpeed,
+            speedIsEstimate = reportedSpeed == null && coords != null,
+            bearing = bearing ?: -1,
+            coords = coords
+        )
+    }
+
+    private fun positionQuery(trainId: String, apiKey: String) = """
         <REQUEST>
-            <LOGIN authenticationkey="$apiKey" />
+            <LOGIN authenticationkey="${apiKey.xmlEscaped()}" />
             <QUERY sseurl="true" namespace="järnväg.trafikinfo" objecttype="TrainPosition" schemaversion="1.1">
                 <FILTER>
-                    <EQ name="Train.AdvertisedTrainNumber" value="$trainId" />
+                    <EQ name="Train.AdvertisedTrainNumber" value="${trainId.xmlEscaped()}" />
                 </FILTER>
                 <INCLUDE>Speed</INCLUDE>
                 <INCLUDE>Status</INCLUDE>
@@ -75,172 +171,4 @@ class TrainPositionClient(
             </QUERY>
         </REQUEST>
     """.trimIndent()
-
-    private suspend fun getInitialInfo(
-        trainId: String
-    ): TrainPositionResult? {
-        if (apiKey is ApiKey.NotAvailable) return null
-        apiKey as ApiKey.Available
-
-        val request = Request.Builder()
-            .url(endpoint)
-            .method(
-                method = "POST",
-                body =
-                    getTrainPosition(trainId = trainId, apiKey = (apiKey as ApiKey.Available).trafikverketKey)
-                        .toRequestBody(
-                            contentType = "application/xml".toMediaType()
-                        )
-            )
-            .build()
-
-        val call = client.newCall(request)
-        val response = call.executeAsync()
-
-        val body = response.body.string()
-
-        return json.decodeFromString<TrainPositionResponseHolder>(body).response.result.first()
-    }
-
-    @OptIn(ExperimentalTime::class)
-    suspend fun getStreamingInfo(
-        trainId: String,
-        onInfoChange: (trainPosition: TrainPositionMini) -> Unit,
-    ) {
-        val initial = getInitialInfo(trainId) ?: return
-
-        if (initial.info?.sseUrl == null) return
-
-        _currentTrainId = trainId
-        val request = Request.Builder()
-            .url(initial.info.sseUrl)
-            .build()
-
-        val date =
-            Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                .date
-                .format(LocalDate.Formats.ISO)
-
-        val info = initial.trainPosition.firstOrNull {
-            it.timeStamp?.startsWith(date) ?: false
-        } ?: initial.trainPosition.firstOrNull()
-
-        Log.d(TAG, "INFO $info")
-
-        info?.let {
-            onInfoChange(getMiniInfo(info = info))
-        }
-
-        val listener = object : EventSourceListener() {
-            override fun onOpen(eventSource: EventSource, response: okhttp3.Response) {
-                Log.e(TAG, "SSE connection for train id $trainId initialized")
-            }
-
-            override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                val data = json.decodeFromString<TrainPositionResponseHolder>(data).response.result.first().trainPosition
-
-                val info = data.firstOrNull {
-                    it.timeStamp?.startsWith(date) ?: false
-                } ?: data.firstOrNull()
-
-                info?.let { onInfoChange(getMiniInfo(info = info)) }
-            }
-
-            override fun onFailure(eventSource: EventSource, t: Throwable?, response: okhttp3.Response?) {
-                Log.e(TAG, "SSE connection for train id $trainId failed: ${t?.message}")
-
-                if (t?.message != "canceled") {
-                    t?.printStackTrace()
-                }
-
-                _currentTrainId = ""
-            }
-
-            override fun onClosed(eventSource: EventSource) {
-                Log.e(TAG, "SSE connection for train id $trainId closed")
-            }
-        }
-
-        source = EventSources.createFactory(client)
-            .newEventSource(request, listener)
-    }
-
-    fun cancel() {
-        source?.cancel()
-    }
-
-    fun calcSpeed(
-        coords: WGS84Coordinates
-    ): Int {
-        val phi1 = previousCoords.latitude * (PI / 180f)
-        val lambda1 = previousCoords.longitude * (PI / 180f)
-
-        val phi2 = coords.latitude * (PI / 180f)
-        val lambda2 = coords.longitude * (PI / 180f)
-
-        val dPhi = phi2 - phi1
-        val dLambda = lambda2 - lambda1
-
-        val sinDPhi = sin(dPhi / 2)
-        val sinDLambda = sin(dLambda / 2)
-
-        val havDPhi = sinDPhi * sinDPhi
-        val havDLambda = sinDLambda * sinDLambda
-
-        val havTheta = havDPhi + cos(phi1) * cos(phi2) * havDLambda
-
-        val thetaRads = 2.0 * asin(sqrt(havTheta))
-
-        val distance = thetaRads * earthRadius // kilometers
-
-        val deltaTime = (coords.timestamp - previousCoords.timestamp) / 3600f // hours
-
-        val speed = floor(distance / deltaTime).toInt()
-        previousCoords = coords
-
-        return if (deltaTime <= 0.0000277778 || speed > 400 || distance < 0.1) {
-            previousSpeeds.last().coerceAtLeast(0)
-        } else {
-            previousSpeeds.add(speed)
-            val average = floor(previousSpeeds.sum().toFloat() / previousSpeeds.size).toInt()
-
-            if (previousSpeeds.size > 4) previousSpeeds.removeAt(0)
-
-            average.coerceAtLeast(0)
-        }
-    }
-
-    fun getCurrentTrainId(): String {
-        return _currentTrainId
-    }
-
-    fun getMiniInfo(info: TrainPosition): TrainPositionMini {
-        val speedIsEstimate: Boolean
-        val speed = if (info.speed == null && info.position != null && info.timeStamp != null) {
-            speedIsEstimate = true
-
-            info.position.toCoords(info.timeStamp)?.let { current ->
-                val new = calcSpeed(coords = current)
-
-                new
-            } ?: 0
-        } else {
-            speedIsEstimate = false
-            info.speed ?: -1
-        }
-
-        var coords: WGS84Coordinates? = null
-        if (info.position != null && info.timeStamp != null) {
-            info.position.toCoords(info.timeStamp)?.let { current ->
-                coords = current
-            }
-        }
-
-        return TrainPositionMini(
-            speed = speed,
-            speedIsEstimate = speedIsEstimate,
-            bearing = info.bearing ?: -1,
-            coords = coords
-        )
-    }
 }

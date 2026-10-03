@@ -2,10 +2,7 @@
 
 package com.kaii.trainspotter.compose.screens
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.Intent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -48,8 +45,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,12 +74,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.TrainUpdateConnection
-import com.kaii.trainspotter.TrainUpdateService
 import com.kaii.trainspotter.compose.widgets.TableShimmerLoadingElement
 import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.compose.widgets.shimmerEffect
+import com.kaii.trainspotter.data.TrainUpdateService
 import com.kaii.trainspotter.domain.Information
 import com.kaii.trainspotter.domain.TrainInformation
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
@@ -94,11 +91,12 @@ import com.kaii.trainspotter.ui.theme.MapStyleJson
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
@@ -111,11 +109,8 @@ import org.maplibre.android.style.sources.GeoJsonSource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
+private val TrainDetailsMapState.Loaded.latLng: LatLng
+    get() = LatLng(latitude, longitude)
 
 @Composable
 fun TrainDetailsScreen(
@@ -125,41 +120,23 @@ fun TrainDetailsScreen(
 ) {
     val context = LocalContext.current
     val navController = LocalNavController.current
-    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val trainUpdateConnection = remember { TrainUpdateConnection() }
-    DisposableEffect(trainId) {
-        val serviceIntent = Intent(context, TrainUpdateService::class.java)
-        context.startService(serviceIntent)
-        context.bindService(serviceIntent, trainUpdateConnection, Context.BIND_AUTO_CREATE)
+    var notificationRequested by rememberSaveable(trainId) { mutableStateOf(false) }
 
-        viewModel.startListening(
-            context = context.applicationContext,
-            trainId = trainId,
-            connection = trainUpdateConnection,
-            onScroll = { index ->
-                coroutineScope.launch {
-                    listState.animateScrollToItem(index = index)
-                }
-            }
-        )
+    LaunchedEffect(trainId) {
+        viewModel.track(trainId)
 
-        onDispose {
-            val changingConfig = context.findActivity()?.isChangingConfigurations == true
+        if (!notificationRequested) {
+            notificationRequested = true
+            TrainUpdateService.start(context)
+        }
+    }
 
-            if (!changingConfig) {
-                trainUpdateConnection.service?.stopListening()
-                viewModel.cancel()
-            }
-
-            runCatching {
-                context.unbindService(trainUpdateConnection)
-            }
-
-            if (!changingConfig) {
-                context.stopService(serviceIntent)
-            }
+    LaunchedEffect(viewModel, listState) {
+        viewModel.scrollEvents.collect { index ->
+            snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > index }
+            listState.animateScrollToItem(index = index)
         }
     }
 
@@ -231,8 +208,8 @@ fun TrainDetailsScreen(
             ) { style ->
                 if (style.getSource("speed-source") == null) {
                     setupSpeedLayer(context, style)
-                    mapStyle = style
                 }
+                mapStyle = style
             }
         }
     }
@@ -257,18 +234,18 @@ fun TrainDetailsScreen(
         if (currentMarker == null) {
             currentMarker = currentMap.addMarker(
                 MarkerOptions()
-                    .position(state.coords)
+                    .position(state.latLng)
                     .title("Current train location")
                     .snippet("Speed: ${state.speed}km/h")
                     .icon(mapIcon)
             )
         } else {
-            currentMarker?.position = state.coords
+            currentMarker?.position = state.latLng
             currentMarker?.snippet = "Speed: ${state.speed}km/h"
         }
 
         if (showingMap) {
-            currentMap.animateCamera(CameraUpdateFactory.newLatLngZoom(state.coords, 14.0))
+            currentMap.animateCamera(CameraUpdateFactory.newLatLngZoom(state.latLng, 14.0))
         }
     }
 
@@ -278,7 +255,7 @@ fun TrainDetailsScreen(
         delay(500.milliseconds)
 
         val state = mapState as? TrainDetailsMapState.Loaded ?: return@LaunchedEffect
-        map?.animateCamera(CameraUpdateFactory.newLatLngZoom(state.coords, 14.0))
+        map?.animateCamera(CameraUpdateFactory.newLatLngZoom(state.latLng, 14.0))
     }
 
     Scaffold(
@@ -304,7 +281,7 @@ fun TrainDetailsScreen(
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = {
-                viewModel.forceRefresh()
+                viewModel.onRefresh()
             },
             modifier = Modifier
                 .padding(innerPadding)
@@ -324,7 +301,7 @@ fun TrainDetailsScreen(
                 style = JetLimeDefaults.columnStyle(
                     itemSpacing = 16.dp,
                 ),
-                key = { _, item -> item.hashCode() },
+                key = { _, item -> item.signature.ifEmpty { item.name } },
                 contentPadding = PaddingValues(16.dp),
                 modifier = Modifier
                     .padding(top = animatedMapHeight)
@@ -369,11 +346,14 @@ fun TrainDetailsScreen(
                             size = with(density) {
                                 Size(
                                     width = size.width - 24.dp.toPx(),
-                                    height = size.height + 32.dp.toPx() // make it taller so the bottom isn't rounded
+                                    height = size.height - 12.dp.toPx()
                                 )
                             },
                             cornerRadius = with(density) {
-                                CornerRadius(RoundedCornerConstants.ROUNDING_LARGE.toPx(), RoundedCornerConstants.ROUNDING_LARGE.toPx())
+                                CornerRadius(
+                                    x = RoundedCornerConstants.ROUNDING_LARGE.toPx(),
+                                    y = RoundedCornerConstants.ROUNDING_LARGE.toPx()
+                                )
                             },
                             blendMode = BlendMode.DstOut,
                         )

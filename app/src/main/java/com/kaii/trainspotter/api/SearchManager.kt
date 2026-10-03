@@ -100,7 +100,7 @@ class SearchManager @Inject constructor(
             ?: emptyList()
 
     private suspend fun searchTrain(query: String): List<SearchResult> {
-        val new = trafikverketClient.getRouteDataForId(trainId = query)?.values ?: return emptyList()
+        val new = trafikverketClient.getRouteDataForId(trainId = query) ?: return emptyList()
 
         if (new.isEmpty()) return emptyList()
 
