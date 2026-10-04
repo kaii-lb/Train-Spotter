@@ -51,6 +51,7 @@
     <string name="train_info_owner">Owner: %s</string>
     <string name="train_info_product">Product: %s</string>
     <string name="train_info_operator">Operator: %s</string>
+    <string name="train_info_alert_is_deviation">This is a deviation</string>
 
     <!--  Misc  -->
     <string name="close">Close</string>

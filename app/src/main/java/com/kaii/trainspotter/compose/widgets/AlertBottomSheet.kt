@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -25,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,12 +50,14 @@ private fun AlertBottomSheetPreview() {
                 Alert(
                     type = "Alert",
                     title = "Bad thing",
-                    text = "This is not supposed to happened"
+                    text = "This is not supposed to happened",
+                    isDeviation = false
                 ),
                 Alert(
-                    type = "Cancelled",
+                    type = "Deviation - Cancelled",
                     title = "inställt",
-                    text = "This is really not supposed to happened"
+                    text = "This is really not supposed to happened",
+                    isDeviation = true
                 )
             ),
             onDismiss = {}
@@ -104,15 +109,16 @@ fun AlertBottomSheet(
                         itemsIndexed(
                             items = alerts,
                             key = { _, item ->
-                                item.title + item.text
+                                item.title + item.text + item.type
                             }
                         ) { index, alert ->
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(space = 8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(CircleShape)
@@ -124,10 +130,15 @@ fun AlertBottomSheet(
                                         style = MaterialTheme.typography.bodyLargeEmphasized,
                                         fontWeight = FontWeight.Bold,
                                         textAlign = TextAlign.Start,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
+
+                                    if (alert.isDeviation) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.railway_alert_2),
+                                            contentDescription = stringResource(id = R.string.train_info_alert_is_deviation)
+                                        )
+                                    }
                                 }
 
                                 Column(

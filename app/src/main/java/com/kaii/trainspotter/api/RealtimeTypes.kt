@@ -12,7 +12,8 @@ import kotlinx.serialization.json.Json
 data class Alert(
     val type: String,
     val title: String,
-    val text: String
+    val text: String,
+    val isDeviation: Boolean = false
 ) {
     object AlertNavType : NavType<Alert>(isNullableAllowed = false) {
         override fun get(bundle: Bundle, key: String): Alert? {

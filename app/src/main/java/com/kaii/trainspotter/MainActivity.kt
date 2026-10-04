@@ -30,8 +30,6 @@ import androidx.navigation.toRoute
 import com.kaii.lavender.snackbars.LavenderSnackbarBox
 import com.kaii.lavender.snackbars.LavenderSnackbarHostState
 import com.kaii.trainspotter.api.Alert
-import com.kaii.trainspotter.api.LocationShortCodeMap
-import com.kaii.trainspotter.api.RailwayEventCodeMap
 import com.kaii.trainspotter.api.Stop
 import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.compose.screens.LoginScreen
@@ -74,12 +72,6 @@ class MainActivity : ComponentActivity() {
                     saver = ApiKey.Saver,
                     inputs = arrayOf(apiKey)
                 ) { apiKey }
-
-                // preload short code map for performance reasons (unknown if significant)
-                LocationShortCodeMap.preloadMap(context = applicationContext)
-
-                // preload
-                RailwayEventCodeMap.preloadMap(context = applicationContext)
 
                 CompositionLocalProvider(
                     LocalNavController provides navController

@@ -4,6 +4,9 @@ import android.util.Log
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.domain.station.Information
 import com.kaii.trainspotter.domain.station.RailwayEventResponseHolder
+import com.kaii.trainspotter.domain.station.ReasonCode
+import com.kaii.trainspotter.domain.station.ReasonCodeTrafikverketResponse
+import com.kaii.trainspotter.domain.station.toAlert
 import com.kaii.trainspotter.domain.train.LocationDetails
 import com.kaii.trainspotter.domain.train.TrainAnnouncementResponse
 import com.kaii.trainspotter.domain.train.TrainInformation
@@ -66,7 +69,9 @@ class TrafikverketClient(
 
     private val alertCache = ConcurrentHashMap<String, CachedAlerts>()
 
-    fun setApiKey(key: ApiKey) { apiKey = key }
+    fun setApiKey(key: ApiKey) {
+        apiKey = key
+    }
 
     @OptIn(ExperimentalTime::class)
     suspend fun getRouteDataForId(trainId: String): List<LocationDetails>? {
@@ -74,10 +79,12 @@ class TrafikverketClient(
 
         return try {
             val body = post(announcementQuery(trainId = trainId, apiKey = key)) ?: return null
-            val announcements = json.decodeFromString<TrainAnnouncementResponse>(body)
 
-            val stops = announcements.response.result.firstOrNull()
+            val announcements = json.decodeFromString<TrainAnnouncementResponse>(body)
+                .response.result.firstOrNull()
                 ?.trainAnnouncements.orEmpty()
+
+            val built = announcements
                 .groupBy { it.locationSignature }
                 .mapNotNull { (signature, entries) ->
                     if (signature == null) return@mapNotNull null
@@ -86,7 +93,7 @@ class TrafikverketClient(
                     val departure = entries.find { it.activityType == "Avgang" }
                     val primary = arrival ?: departure ?: return@mapNotNull null
 
-                    LocationDetails(
+                    val stop = LocationDetails(
                         name = LocationShortCodeMap.getName(code = signature),
                         signature = signature,
                         track = primary.trackAtLocation?.takeUnless { it == "x" } ?: "",
@@ -96,25 +103,48 @@ class TrafikverketClient(
                         estimatedDepartureTime = departure?.let { it.timeAtLocation ?: it.estimatedTimeAtLocation },
                         timeAtLocation = primary.timeAtLocation,
                         passed = primary.timeAtLocation != null,
-                        delay = delayOf(estimated = primary.estimatedTimeAtLocation, advertised = primary.advertisedTimeAtLocation),
+                        delay = delayOf(
+                            estimated = primary.estimatedTimeAtLocation,
+                            advertised = primary.advertisedTimeAtLocation
+                        ),
                         productInfo = productInfoOf(
                             productInformation = primary.productInformation,
                             owner = primary.informationOwner,
                             operator = primary.operator
                         ),
-                        deviations = primary.deviations.map {
-                            Alert(type = "", title = it.code, text = it.description)
-                        },
+                        deviations = emptyList(), // filled in below
                         canceled = arrival?.canceled == true || departure?.canceled == true
                     )
+                    stop to primary.deviations
                 }
-                .sortedByRunningOrder()
 
-            val alertsBySignature = railwayAlerts(stops = stops, apiKey = key)
+            val stops = built.map { it.first }.sortedByRunningOrder()
+            val deviationsBySignature = built.associate { (stop, devs) -> stop.signature to devs }
+
+            val codes = built.flatMap { (_, devs) -> devs.map { it.code } }.distinct()
+
+            val (reasonCodes, alertsBySignature) = coroutineScope {
+                val reasons = async { fetchReasonCodes(codes = codes, apiKey = key) }
+                val alerts = async { railwayAlerts(stops = stops, apiKey = key) }
+                reasons.await() to alerts.await()
+            }
 
             stops.map { stop ->
-                val alerts = alertsBySignature[stop.signature]
-                if (alerts.isNullOrEmpty()) stop else stop.copy(deviations = stop.deviations + alerts)
+                val deviations = deviationsBySignature[stop.signature].orEmpty()
+                    .map { dev ->
+                        val networked = reasonCodes?.get(dev.code)
+                            ?.toAlert(additionTypeInfo = "Deviation", isDeviation = true)
+
+                        networked  ?: Alert(
+                            type = "Deviation",
+                            title = dev.code,
+                            text = dev.description,
+                            isDeviation = true
+                        )
+                    }
+                    .distinct()
+
+                stop.copy(deviations = deviations + alertsBySignature[stop.signature].orEmpty())
             }
         } catch (e: CancellationException) {
             throw e
@@ -178,7 +208,7 @@ class TrafikverketClient(
         val dayAfter = instant.plus(1.days).plus(5.minutes).toDayStart()
 
         val body = post(
-            railwayEventsQuery(
+            xml = railwayEventsQuery(
                 locationSignature = signature,
                 timeBefore = dayOf,
                 timeAfter = dayAfter,
@@ -186,18 +216,23 @@ class TrafikverketClient(
             )
         ) ?: return null
 
-        return json.decodeFromString<RailwayEventResponseHolder>(body).response.railwayResult
+        val eventCodes = json.decodeFromString<RailwayEventResponseHolder>(body)
+            .response.railwayResult
             .filter { it.error == null }
             .flatMap { it.railwayEvents }
-            .mapNotNull { event ->
-                val error = RailwayEventCodeMap.getError(event.reasonCode) ?: return@mapNotNull null
+            .mapNotNull { it.reasonCode }
+            .distinct()
 
-                Alert(
-                    type = error.code,
-                    title = error.level3 ?: error.code,
-                    text = error.description + (error.usage?.let { " $it" } ?: "")
-                )
-            }
+        if (eventCodes.isEmpty()) return emptyList()
+
+        val lookupTableJson = post(
+            xml = reasonCodeLookup(eventCodes = eventCodes, apiKey = apiKey)
+        ) ?: return null
+
+        return json.decodeFromString<ReasonCodeTrafikverketResponse>(lookupTableJson)
+            .response.result
+            .flatMap { it.reasonCode.orEmpty() }
+            .map { it.toAlert()}
             .distinct()
     }
 
@@ -226,17 +261,21 @@ class TrafikverketClient(
         }
 
         if (owner != null) {
-            add(Information(
-                code = TrainInformation.Owner.type.toString(),
-                description = owner
-            ))
+            add(
+                Information(
+                    code = TrainInformation.Owner.type.toString(),
+                    description = owner
+                )
+            )
         }
 
         if (operator != null) {
-            add(Information(
-                code = TrainInformation.Operator.type.toString(),
-                description = operator
-            ))
+            add(
+                Information(
+                    code = TrainInformation.Operator.type.toString(),
+                    description = operator
+                )
+            )
         }
     }
 
@@ -251,6 +290,21 @@ class TrafikverketClient(
             val diff = Instant.parse(estimated) - Instant.parse(advertised)
             diff.toString()
         }.getOrDefault("")
+    }
+
+    private suspend fun fetchReasonCodes(
+        codes: List<String>,
+        apiKey: String
+    ): Map<String, ReasonCode>? {
+        if (codes.isEmpty()) return emptyMap()
+
+        val body = post(xml = reasonCodeLookup(eventCodes = codes, apiKey = apiKey)) ?: return null
+
+        return json.decodeFromString<ReasonCodeTrafikverketResponse>(body)
+            .response.result
+            .flatMap { it.reasonCode.orEmpty() }
+            .mapNotNull { rc -> rc.code?.let { it to rc } }
+            .toMap()
     }
 
     @OptIn(ExperimentalTime::class)
@@ -319,6 +373,20 @@ class TrafikverketClient(
                     </AND>
                 </FILTER>
                 <INCLUDE>ReasonCode</INCLUDE>
+            </QUERY>
+        </REQUEST>
+    """.trimIndent()
+
+    private fun reasonCodeLookup(
+        eventCodes: List<String>,
+        apiKey: String
+    ) = """
+        <REQUEST>
+            <LOGIN authenticationkey="${apiKey.xmlEscaped()}"/>
+            <QUERY objecttype="ReasonCode" schemaversion="1">
+                <FILTER>
+                    <IN name="Code" value="${eventCodes.joinToString(",")}"/>
+                </FILTER>
             </QUERY>
         </REQUEST>
     """.trimIndent()

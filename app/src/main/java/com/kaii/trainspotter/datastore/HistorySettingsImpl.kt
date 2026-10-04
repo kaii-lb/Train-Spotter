@@ -16,7 +16,7 @@ class HistorySettingsImpl(
 ) : Preference(context, scope) {
     private val searchHistory = stringPreferencesKey("history_search_items")
 
-    suspend fun needsMigration =
+    suspend fun needsMigration() =
         context.datastore.data.first()[searchHistory]?.contains("com.kaii.trainspotter.domain.SearchName.Station") == true
 
     suspend fun migrate() = context.datastore.edit {

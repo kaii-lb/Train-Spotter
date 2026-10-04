@@ -103,12 +103,14 @@ private fun TimeTableElementPreview() {
                     Alert(
                         type = "Alert",
                         title = "Bad thing",
-                        text = "This is not supposed to happened"
+                        text = "This is not supposed to happened",
+                        isDeviation = false
                     ),
                     Alert(
                         type = "Cancelled",
                         title = "inställt",
-                        text = "This is really not supposed to happened"
+                        text = "This is really not supposed to happened",
+                        isDeviation = true
                     )
                 )
             ),
