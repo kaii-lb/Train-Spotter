@@ -1,5 +1,8 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.train
 
+import com.kaii.trainspotter.domain.station.CompositIdentifierOperationalType
+import com.kaii.trainspotter.domain.station.Information
+import com.kaii.trainspotter.domain.station.Location
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

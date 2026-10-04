@@ -1,11 +1,11 @@
 package com.kaii.trainspotter.di
 
+import com.kaii.trainspotter.api.ApiManager
 import com.kaii.trainspotter.api.RealtimeClient
 import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainPositionClient
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.datastore.Settings
-import com.kaii.trainspotter.domain.ApiManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

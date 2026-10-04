@@ -5,9 +5,9 @@ import com.kaii.trainspotter.api.TrafikverketClient
 import com.kaii.trainspotter.api.TrainPositionClient
 import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.datastore.Settings
-import com.kaii.trainspotter.domain.TrainPositionMini
 import com.kaii.trainspotter.domain.tracking.RouteState
 import com.kaii.trainspotter.domain.tracking.TrackingState
+import com.kaii.trainspotter.domain.train.TrainPositionMini
 import com.kaii.trainspotter.helpers.ServerConstants
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

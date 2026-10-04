@@ -1,8 +1,5 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.api
 
-import com.kaii.trainspotter.api.RealtimeClient
-import com.kaii.trainspotter.api.TrafikverketClient
-import com.kaii.trainspotter.api.TrainPositionClient
 import com.kaii.trainspotter.datastore.Settings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

@@ -5,9 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.domain.SearchDescription
-import com.kaii.trainspotter.domain.SearchName
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.search.SearchDescription
+import com.kaii.trainspotter.domain.search.SearchName
+import com.kaii.trainspotter.domain.station.TransportMode
 import com.kaii.trainspotter.presentation.label
 
 class ResultInfoFetcher(

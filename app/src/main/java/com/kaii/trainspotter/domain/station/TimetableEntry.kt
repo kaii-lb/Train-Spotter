@@ -1,4 +1,4 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.station
 
 import com.kaii.trainspotter.api.Alert
 import com.kaii.trainspotter.api.Stop

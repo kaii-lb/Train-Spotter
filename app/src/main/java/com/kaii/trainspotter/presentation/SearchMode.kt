@@ -3,7 +3,7 @@ package com.kaii.trainspotter.presentation
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.domain.SearchMode
+import com.kaii.trainspotter.domain.search.SearchMode
 
 @get:DrawableRes
 val SearchMode.icon: Int

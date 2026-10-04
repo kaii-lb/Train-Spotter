@@ -1,4 +1,4 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.search
 
 import kotlinx.serialization.Serializable
 

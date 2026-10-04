@@ -1,5 +1,7 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.train
 
+import com.kaii.trainspotter.domain.station.Error
+import com.kaii.trainspotter.domain.station.Info
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

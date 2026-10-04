@@ -79,8 +79,8 @@ import com.kaii.trainspotter.compose.widgets.TrainDetailTableElement
 import com.kaii.trainspotter.compose.widgets.TrainInfoDialog
 import com.kaii.trainspotter.compose.widgets.shimmerEffect
 import com.kaii.trainspotter.data.TrainUpdateService
-import com.kaii.trainspotter.domain.Information
-import com.kaii.trainspotter.domain.TrainInformation
+import com.kaii.trainspotter.domain.station.Information
+import com.kaii.trainspotter.domain.train.TrainInformation
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.SpeedPointDisplay
 import com.kaii.trainspotter.helpers.TextStylingConstants

@@ -1,7 +1,7 @@
 package com.kaii.trainspotter.domain.tracking
 
-import com.kaii.trainspotter.domain.LocationDetails
-import com.kaii.trainspotter.domain.TrainPositionMini
+import com.kaii.trainspotter.domain.train.LocationDetails
+import com.kaii.trainspotter.domain.train.TrainPositionMini
 
 sealed interface RouteState {
     data object Idle : RouteState

@@ -1,6 +1,7 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.train
 
 import com.kaii.trainspotter.api.Alert
+import com.kaii.trainspotter.domain.station.Information
 import com.kaii.trainspotter.helpers.formatSecondsToTime
 import kotlinx.serialization.Serializable
 import kotlin.time.ExperimentalTime

@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaii.trainspotter.api.SearchManager
 import com.kaii.trainspotter.datastore.Settings
-import com.kaii.trainspotter.domain.SearchMode
-import com.kaii.trainspotter.domain.SearchResult
+import com.kaii.trainspotter.domain.search.SearchMode
+import com.kaii.trainspotter.domain.search.SearchResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin

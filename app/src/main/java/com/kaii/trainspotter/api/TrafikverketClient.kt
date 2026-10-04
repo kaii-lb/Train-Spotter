@@ -2,11 +2,11 @@ package com.kaii.trainspotter.api
 
 import android.util.Log
 import com.kaii.trainspotter.datastore.ApiKey
-import com.kaii.trainspotter.domain.Information
-import com.kaii.trainspotter.domain.LocationDetails
-import com.kaii.trainspotter.domain.RailwayEventResponseHolder
-import com.kaii.trainspotter.domain.TrainAnnouncementResponse
-import com.kaii.trainspotter.domain.TrainInformation
+import com.kaii.trainspotter.domain.station.Information
+import com.kaii.trainspotter.domain.station.RailwayEventResponseHolder
+import com.kaii.trainspotter.domain.train.LocationDetails
+import com.kaii.trainspotter.domain.train.TrainAnnouncementResponse
+import com.kaii.trainspotter.domain.train.TrainInformation
 import com.kaii.trainspotter.helpers.xmlEscaped
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async

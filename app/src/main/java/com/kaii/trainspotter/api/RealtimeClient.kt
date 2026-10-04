@@ -2,9 +2,9 @@ package com.kaii.trainspotter.api
 
 import android.util.Log
 import com.kaii.trainspotter.datastore.ApiKey
-import com.kaii.trainspotter.domain.ArrivalsResponse
-import com.kaii.trainspotter.domain.DeparturesResponse
-import com.kaii.trainspotter.domain.StopsResponse
+import com.kaii.trainspotter.domain.station.ArrivalsResponse
+import com.kaii.trainspotter.domain.station.DeparturesResponse
+import com.kaii.trainspotter.domain.station.StopsResponse
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request

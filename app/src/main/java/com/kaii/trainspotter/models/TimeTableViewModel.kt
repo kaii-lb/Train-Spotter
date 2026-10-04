@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaii.trainspotter.api.RealtimeClient
 import com.kaii.trainspotter.compose.widgets.TimeTableType
-import com.kaii.trainspotter.domain.ArrivalsResponse
-import com.kaii.trainspotter.domain.DeparturesResponse
-import com.kaii.trainspotter.domain.TimetableEntry
+import com.kaii.trainspotter.domain.station.ArrivalsResponse
+import com.kaii.trainspotter.domain.station.DeparturesResponse
+import com.kaii.trainspotter.domain.station.TimetableEntry
 import com.kaii.trainspotter.helpers.ServerConstants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers

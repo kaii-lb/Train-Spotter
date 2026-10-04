@@ -3,7 +3,7 @@ package com.kaii.trainspotter.api
 import android.net.Uri
 import android.os.Bundle
 import androidx.navigation.NavType
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.station.TransportMode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

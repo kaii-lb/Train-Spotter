@@ -2,10 +2,10 @@ package com.kaii.trainspotter.api
 
 import android.util.Log
 import com.kaii.trainspotter.datastore.ApiKey
-import com.kaii.trainspotter.domain.TrainPosition
-import com.kaii.trainspotter.domain.TrainPositionMini
-import com.kaii.trainspotter.domain.TrainPositionResponseHolder
-import com.kaii.trainspotter.domain.TrainPositionResult
+import com.kaii.trainspotter.domain.train.TrainPosition
+import com.kaii.trainspotter.domain.train.TrainPositionMini
+import com.kaii.trainspotter.domain.train.TrainPositionResponseHolder
+import com.kaii.trainspotter.domain.train.TrainPositionResult
 import com.kaii.trainspotter.helpers.xmlEscaped
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow

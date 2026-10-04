@@ -1,5 +1,6 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.search
 
+import com.kaii.trainspotter.domain.station.TransportMode
 import kotlinx.serialization.Serializable
 
 @Serializable

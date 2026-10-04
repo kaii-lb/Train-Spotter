@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.kaii.trainspotter.domain.SearchMode
+import com.kaii.trainspotter.domain.search.SearchMode
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.presentation.description
 import com.kaii.trainspotter.presentation.icon

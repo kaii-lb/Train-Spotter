@@ -3,7 +3,7 @@ package com.kaii.trainspotter.presentation
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.station.TransportMode
 
 @get:DrawableRes
 val TransportMode.icon: Int

@@ -1,4 +1,4 @@
-package com.kaii.trainspotter.domain
+package com.kaii.trainspotter.domain.station
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

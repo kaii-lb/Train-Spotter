@@ -22,7 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kaii.trainspotter.R
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.station.TransportMode
 import com.kaii.trainspotter.presentation.getSearchItemShapeFromPosition
 import com.kaii.trainspotter.presentation.icon
 

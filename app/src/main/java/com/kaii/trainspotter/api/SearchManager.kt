@@ -1,11 +1,11 @@
 package com.kaii.trainspotter.api
 
 import android.util.Log
-import com.kaii.trainspotter.domain.SearchDescription
-import com.kaii.trainspotter.domain.SearchMode
-import com.kaii.trainspotter.domain.SearchName
-import com.kaii.trainspotter.domain.SearchResult
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.search.SearchDescription
+import com.kaii.trainspotter.domain.search.SearchMode
+import com.kaii.trainspotter.domain.search.SearchName
+import com.kaii.trainspotter.domain.search.SearchResult
+import com.kaii.trainspotter.domain.station.TransportMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

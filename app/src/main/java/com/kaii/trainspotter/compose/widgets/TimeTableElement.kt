@@ -53,9 +53,9 @@ import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.api.Alert
 import com.kaii.trainspotter.api.Stop
-import com.kaii.trainspotter.domain.Route
-import com.kaii.trainspotter.domain.TimetableEntry
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.station.Route
+import com.kaii.trainspotter.domain.station.TimetableEntry
+import com.kaii.trainspotter.domain.station.TransportMode
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.helpers.formatDelay

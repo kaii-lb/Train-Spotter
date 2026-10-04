@@ -5,8 +5,8 @@ package com.kaii.trainspotter.models
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kaii.trainspotter.data.TrainTracker
-import com.kaii.trainspotter.domain.LocationDetails
 import com.kaii.trainspotter.domain.tracking.RouteState
+import com.kaii.trainspotter.domain.train.LocationDetails
 import com.kaii.trainspotter.helpers.ServerConstants
 import com.pushpal.jetlime.ItemsList
 import dagger.hilt.android.lifecycle.HiltViewModel

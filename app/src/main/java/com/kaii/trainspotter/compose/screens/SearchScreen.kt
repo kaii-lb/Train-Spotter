@@ -52,11 +52,11 @@ import com.kaii.trainspotter.compose.widgets.search.SearchFieldError
 import com.kaii.trainspotter.compose.widgets.search.SearchItem
 import com.kaii.trainspotter.compose.widgets.search.SearchItemPositon
 import com.kaii.trainspotter.compose.widgets.search.SearchModeSelector
-import com.kaii.trainspotter.domain.SearchDescription
-import com.kaii.trainspotter.domain.SearchMode
-import com.kaii.trainspotter.domain.SearchName
-import com.kaii.trainspotter.domain.SearchResult
-import com.kaii.trainspotter.domain.TransportMode
+import com.kaii.trainspotter.domain.search.SearchDescription
+import com.kaii.trainspotter.domain.search.SearchMode
+import com.kaii.trainspotter.domain.search.SearchName
+import com.kaii.trainspotter.domain.search.SearchResult
+import com.kaii.trainspotter.domain.station.TransportMode
 import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.rememberResultInfoFetcher
 import com.kaii.trainspotter.models.SearchViewModel

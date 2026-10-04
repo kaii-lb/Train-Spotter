@@ -15,8 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.kaii.trainspotter.compose.widgets.SearchShimmerLoadingItem
-import com.kaii.trainspotter.domain.SearchMode
-import com.kaii.trainspotter.domain.SearchResult
+import com.kaii.trainspotter.domain.search.SearchMode
+import com.kaii.trainspotter.domain.search.SearchResult
 import com.kaii.trainspotter.helpers.ResultInfoFetcher
 
 @Composable
