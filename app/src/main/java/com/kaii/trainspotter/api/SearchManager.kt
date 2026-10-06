@@ -45,6 +45,7 @@ class SearchManager @Inject constructor(
         if (mode == _searchMode.value) return
         _searchMode.value = mode
         _results.value = emptyList()
+        _isSearching.value = false
         lastCompleted = null
     }
 
@@ -65,11 +66,11 @@ class SearchManager @Inject constructor(
         _results.value = placeholders
 
         try {
-            lastCompleted = query to mode
             _results.value = withContext(Dispatchers.IO) {
                 if (mode == SearchMode.Station) searchStations(query)
                 else searchTrain(query)
             }
+            lastCompleted = query to mode
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

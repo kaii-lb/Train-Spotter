@@ -20,6 +20,7 @@ class SearchViewModel @Inject constructor(
     private val settings: Settings
 ) : ViewModel() {
     private var searchJob: Job? = null
+    private var activeSearch: Pair<String, SearchMode>? = null
 
     val isSearching = searchManager.isSearching
     val searchResults = searchManager.results
@@ -32,15 +33,25 @@ class SearchViewModel @Inject constructor(
     )
 
     fun search(query: String) {
+        val trimmed = query.trim()
+        val key = trimmed to searchMode.value
+
+        if (searchJob?.isActive == true && activeSearch == key) return
+
         val previous = searchJob
+        activeSearch = key
         searchJob = viewModelScope.launch {
-            // quit previous job as to not show stale results in the current run
             previous?.cancelAndJoin()
-            searchManager.search(query)
+            searchManager.search(trimmed)
         }
     }
 
     fun changeSearchMode(mode: SearchMode) {
+        if (mode == searchMode.value) return
+
+        searchJob?.cancel()
+        searchJob = null
+        activeSearch = null
         searchManager.changeMode(mode)
     }
 
