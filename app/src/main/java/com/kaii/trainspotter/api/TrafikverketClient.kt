@@ -31,7 +31,6 @@ import okhttp3.coroutines.executeAsync
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 class TrafikverketClient(
@@ -73,7 +72,12 @@ class TrafikverketClient(
         apiKey = key
     }
 
-    @OptIn(ExperimentalTime::class)
+    suspend fun verifyApiKey(): Boolean {
+        val apiKey = (apiKey as? ApiKey.Available)?.trafikverketKey ?: return false
+
+        return post(apiVerificationRequest(apiKey)) != null
+    }
+
     suspend fun getRouteDataForId(trainId: String): List<LocationDetails>? {
         val key = (apiKey as? ApiKey.Available)?.trafikverketKey ?: return null
 
@@ -201,7 +205,6 @@ class TrafikverketClient(
         return fetched
     }
 
-    @OptIn(ExperimentalTime::class)
     private suspend fun fetchAlerts(signature: String, time: String, apiKey: String): List<Alert>? {
         val instant = Instant.parse(time)
         val dayOf = instant.plus((-5).minutes).toDayStart()
@@ -236,7 +239,6 @@ class TrafikverketClient(
             .distinct()
     }
 
-    @OptIn(ExperimentalTime::class)
     private fun Instant.toDayStart(): String = toLocalDateTime(TimeZone.currentSystemDefault()).format(DAY_START_FORMAT)
 
     private suspend fun post(xml: String): String? {
@@ -279,7 +281,6 @@ class TrafikverketClient(
         }
     }
 
-    @OptIn(ExperimentalTime::class)
     private fun delayOf(
         estimated: String?,
         advertised: String?
@@ -307,7 +308,6 @@ class TrafikverketClient(
             .toMap()
     }
 
-    @OptIn(ExperimentalTime::class)
     private fun List<LocationDetails>.sortedByRunningOrder(): List<LocationDetails> =
         map { stop ->
             val time = stop.arrivalTime.ifBlank { stop.departureTime }
@@ -388,6 +388,15 @@ class TrafikverketClient(
                     <IN name="Code" value="${eventCodes.joinToString(",")}"/>
                 </FILTER>
             </QUERY>
+        </REQUEST>
+    """.trimIndent()
+
+    private fun apiVerificationRequest(
+        apiKey: String
+    ) = """
+        <REQUEST>
+            <LOGIN authenticationkey="${apiKey.xmlEscaped()}"/>
+            <QUERY objecttype="TrainStation" limit="1" />
         </REQUEST>
     """.trimIndent()
 }

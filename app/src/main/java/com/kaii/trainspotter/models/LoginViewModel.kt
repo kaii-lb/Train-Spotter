@@ -43,15 +43,13 @@ class LoginViewModel @Inject constructor(
             trafikverketClient.setApiKey(newKey)
 
             val response1 = realtimeClient.findStopGroups("malmö")
-
             if (response1 == null) {
                 _events.send(LoginEvent.RealtimeKeyInvalid)
                 return@launch
             }
 
-            val response2 = trafikverketClient.getRouteDataForId("1778")
-
-            if (response2.isNullOrEmpty()) {
+            val response2 = trafikverketClient.verifyApiKey()
+            if (!response2) {
                 _events.send(LoginEvent.TrafikverketKeyInvalid)
                 return@launch
             }
