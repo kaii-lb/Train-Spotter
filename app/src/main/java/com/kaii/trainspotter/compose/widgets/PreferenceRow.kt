@@ -232,6 +232,7 @@ fun TextPreferencesRow(
         containerColor = if (clearBackground) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
         position = position,
         modifier = modifier
+            .clip(shape = position.shape)
             .clickable(onClick = onClick)
     ) {
         Text(

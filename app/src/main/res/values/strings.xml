@@ -38,7 +38,6 @@
     <string name="timetable_time_info_departure_actual">Actual Departure: %s</string>
 
     <!--  Stop/Train Search  -->
-    <string name="search">Search</string>
     <string name="search_transport_modes">Transport by: %s</string>
     <string name="search_invalid_input">Couldn\'t find a match</string>
     <string name="search_train_route">%1$s to %2$s</string>
@@ -55,10 +54,8 @@
 
     <!--  Misc  -->
     <string name="close">Close</string>
-    <string name="okay">Okay</string>
     <string name="train">Train</string>
     <string name="station">Station</string>
-    <string name="debugging">Debugging</string>
     <string name="loading">Loading…</string>
     <string name="reached_location">Reached %s</string>
     <string name="stopped">Stopped</string>
@@ -72,16 +69,6 @@
     <string name="settings_developer">Developer</string>
 
     <!--  Service Testing  -->
-    <string name="service_testing">Service Testing</string>
-    <string name="service_testing_desc">Test the notification update service</string>
-    <string name="service_testing_management">Management</string>
-    <string name="service_testing_train_id">Train ID</string>
-    <string name="service_testing_train_id_placeholder">Enter a valid train id</string>
-    <string name="service_testing_train_id_invalid">This train id is invalid</string>
-    <string name="service_testing_start">Start Service</string>
-    <string name="service_testing_start_desc">Shows notification and starts listening to updates</string>
-    <string name="service_testing_stop">Stop Service</string>
-    <string name="service_testing_stop_desc">Removes notification and stops listening to updates</string>
 
     <!--  Permissions  -->
     <string name="permissions_grant">Grant</string>

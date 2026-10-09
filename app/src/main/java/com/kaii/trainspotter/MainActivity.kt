@@ -34,7 +34,6 @@ import com.kaii.trainspotter.api.Stop
 import com.kaii.trainspotter.api.StopGroup
 import com.kaii.trainspotter.compose.screens.LoginScreen
 import com.kaii.trainspotter.compose.screens.SearchScreen
-import com.kaii.trainspotter.compose.screens.ServiceTesting
 import com.kaii.trainspotter.compose.screens.Settings
 import com.kaii.trainspotter.compose.screens.TimeTableScreen
 import com.kaii.trainspotter.compose.screens.TrainDetailsScreen
@@ -148,10 +147,6 @@ class MainActivity : ComponentActivity() {
                     trainId = screen.trainId,
                     viewModel = hiltViewModel()
                 )
-            }
-
-            composable<Screens.ServiceTesting> {
-                ServiceTesting()
             }
         }
     }
