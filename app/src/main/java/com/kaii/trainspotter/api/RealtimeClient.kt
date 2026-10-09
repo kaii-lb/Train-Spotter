@@ -6,12 +6,17 @@ import com.kaii.trainspotter.domain.station.ArrivalsResponse
 import com.kaii.trainspotter.domain.station.DeparturesResponse
 import com.kaii.trainspotter.domain.station.StopsResponse
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.coroutines.executeAsync
+import java.util.concurrent.CancellationException
 import kotlin.time.Duration.Companion.minutes
 
 private const val TAG = "com.kaii.trainspotter.api.RealtimeClient"
+
+private fun HttpUrl.toSafeUrl() = newBuilder().removeAllQueryParameters("key").build()
 
 class RealtimeClient(
     private var apiKey: ApiKey
@@ -36,16 +41,20 @@ class RealtimeClient(
         if (apiKey is ApiKey.NotAvailable) return null
 
         try {
-            val request = Request.Builder()
-                .url("$endpoint/departures/${stopId}?key=${(apiKey as ApiKey.Available).realtimeKey}")
+            val url = endpoint.toHttpUrl()
+                .newBuilder()
+                .addPathSegment("departures")
+                .addPathSegment(stopId)
+                .addQueryParameter("key", (apiKey as ApiKey.Available).realtimeKey)
                 .build()
 
+            val request = Request.Builder().url(url).build()
             val call = client.newCall(request)
             val response = call.executeAsync()
 
             val body = response.body.string()
 
-            Log.d(TAG, "Body for \"$endpoint/departures/${stopId}?key=${(apiKey as ApiKey.Available).realtimeKey}\" is \n $body")
+            Log.d(TAG, "Body for \"${url.toSafeUrl()}?\" is \n $body")
 
             return if (response.isSuccessful && body != "") json.decodeFromString(body)
             else null
@@ -63,16 +72,20 @@ class RealtimeClient(
         if (apiKey is ApiKey.NotAvailable) return null
 
         try {
-            val request = Request.Builder()
-                .url("$endpoint/arrivals/${stopId}?key=${(apiKey as ApiKey.Available).realtimeKey}")
+            val url = endpoint.toHttpUrl()
+                .newBuilder()
+                .addPathSegment("arrivals")
+                .addPathSegment(stopId)
+                .addQueryParameter("key", (apiKey as ApiKey.Available).realtimeKey)
                 .build()
 
+            val request = Request.Builder().url(url).build()
             val call = client.newCall(request)
             val response = call.executeAsync()
 
             val body = response.body.string()
 
-            Log.d(TAG, "Body for \"$endpoint/arrivals/${stopId}?key=${(apiKey as ApiKey.Available).realtimeKey}\" is \n $body")
+            Log.d(TAG, "Body for \"${url.toSafeUrl()}?\" is \n $body")
 
             return if (response.isSuccessful && body != "") json.decodeFromString(body)
             else null
@@ -90,19 +103,26 @@ class RealtimeClient(
         if (apiKey is ApiKey.NotAvailable) return null
 
         try {
-            val request = Request.Builder()
-                .url("$endpoint/stops/name/${name}?key=${(apiKey as ApiKey.Available).realtimeKey}")
+            val url = endpoint.toHttpUrl()
+                .newBuilder()
+                .addPathSegment("stops")
+                .addPathSegment("name")
+                .addPathSegment(name)
+                .addQueryParameter("key", (apiKey as ApiKey.Available).realtimeKey)
                 .build()
 
+            val request = Request.Builder().url(url).build()
             val call = client.newCall(request)
             val response = call.executeAsync()
 
             val body = response.body.string()
 
-            Log.d(TAG, "Body for \"$endpoint/stops/name/${name}?key=${(apiKey as ApiKey.Available).realtimeKey}\" is \n $body")
+            Log.d(TAG, "Body for \"${url.toSafeUrl()}\" is \n $body")
 
             return if (response.isSuccessful && body != "") json.decodeFromString(body)
             else null
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             Log.e(TAG, e.toString())
             e.printStackTrace()

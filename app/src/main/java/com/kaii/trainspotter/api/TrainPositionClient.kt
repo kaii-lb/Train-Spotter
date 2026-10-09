@@ -30,7 +30,6 @@ import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import java.io.IOException
 import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 class TrainPositionClient(
     @Volatile private var apiKey: ApiKey,
@@ -45,9 +44,10 @@ class TrainPositionClient(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun setApiKey(key: ApiKey) { apiKey = key }
+    fun setApiKey(key: ApiKey) {
+        apiKey = key
+    }
 
-    @OptIn(ExperimentalTime::class)
     fun positions(trainId: String): Flow<TrainPositionMini> = flow {
         val key = (apiKey as? ApiKey.Available)?.trafikverketKey
             ?: throw IllegalStateException("Trafikverket API key is not available")
@@ -75,7 +75,8 @@ class TrainPositionClient(
                 body = positionQuery(
                     trainId = trainId,
                     apiKey = key
-                ).toRequestBody("application/xml".toMediaType()))
+                ).toRequestBody("application/xml".toMediaType())
+            )
             .build()
 
         val body = httpClient.newCall(request).executeAsync().use { response ->
@@ -122,7 +123,6 @@ class TrainPositionClient(
         null
     }
 
-    @OptIn(ExperimentalTime::class)
     private fun List<TrainPosition>.pickCurrent(): TrainPosition? {
         val today = Clock.System.now()
             .toLocalDateTime(TimeZone.currentSystemDefault())
