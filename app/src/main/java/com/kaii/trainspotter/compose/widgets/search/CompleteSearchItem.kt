@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import com.kaii.trainspotter.compose.widgets.SearchShimmerLoadingItem
 import com.kaii.trainspotter.domain.search.SearchMode
 import com.kaii.trainspotter.domain.search.SearchResult
+import com.kaii.trainspotter.domain.station.TransportMode
 import com.kaii.trainspotter.helpers.ResultInfoFetcher
 
 @Composable
@@ -60,7 +61,10 @@ fun LazyItemScope.CompleteSearchItem(
                     name = remember(item) { infoFetcher.getFromName(item.name) },
                     description = remember(item) { infoFetcher.getFromDescription(item.description) },
                     hasError = item.hasError,
-                    transportMode = item.transportModes.first(),
+                    transportMode = remember(item) {
+                        if (item.transportModes.contains(TransportMode.Train)) TransportMode.Train
+                        else item.transportModes.first()
+                    },
                     position =
                         if (listSize == 1) SearchItemPositon.Single
                         else if (index == 0) SearchItemPositon.Top
