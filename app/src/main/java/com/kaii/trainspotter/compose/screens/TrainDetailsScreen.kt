@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -84,14 +82,16 @@ import com.kaii.trainspotter.domain.train.TrainInformation
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
 import com.kaii.trainspotter.helpers.SpeedPointDisplay
 import com.kaii.trainspotter.helpers.TextStylingConstants
-import com.kaii.trainspotter.helpers.tintDrawable
+import com.kaii.trainspotter.helpers.createTrainIcon
 import com.kaii.trainspotter.models.TrainDetailsMapState
 import com.kaii.trainspotter.models.TrainDetailsViewModel
 import com.kaii.trainspotter.ui.theme.MapStyleJson
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeDefaults
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
@@ -149,16 +149,6 @@ fun TrainDetailsScreen(
     var mapWidth by remember { mutableIntStateOf(0) }
     var maxHeight by remember { mutableIntStateOf(0) }
     var currentMarker: Marker? by remember { mutableStateOf(null) }
-    val mapIcon = remember {
-        IconFactory.getInstance(context)
-            .fromBitmap(
-                tintDrawable(
-                    context = context,
-                    drawableId = R.drawable.train_filled_48px,
-                    color = Color.Red.toArgb()
-                )
-            )
-    }
 
     val mapView = remember(context) { MapView(context).apply { onCreate(null) } }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -227,9 +217,39 @@ fun TrainDetailsScreen(
         }
     }
 
+    var cachedBearing by remember { mutableIntStateOf(0) }
+    var cachedIcon by remember {
+        mutableStateOf(
+            IconFactory.getInstance(context)
+                .fromBitmap(
+                    createTrainIcon(
+                        context = context,
+                        bearing = null,
+                        color = Color.Red.toArgb()
+                    )
+                )
+        )
+    }
+
     LaunchedEffect(mapState, map) {
         val state = mapState as? TrainDetailsMapState.Loaded ?: return@LaunchedEffect
         val currentMap = map ?: return@LaunchedEffect
+
+        if (cachedBearing != state.bearing) {
+            val mapIcon = withContext(Dispatchers.Default) {
+                IconFactory.getInstance(context)
+                    .fromBitmap(
+                        createTrainIcon(
+                            context = context,
+                            bearing = state.bearing,
+                            color = Color.Red.toArgb()
+                        )
+                    )
+            }
+
+            cachedBearing = state.bearing
+            cachedIcon = mapIcon
+        }
 
         if (currentMarker == null) {
             currentMarker = currentMap.addMarker(
@@ -237,11 +257,12 @@ fun TrainDetailsScreen(
                     .position(state.latLng)
                     .title("Current train location")
                     .snippet("Speed: ${state.speed}km/h")
-                    .icon(mapIcon)
+                    .icon(cachedIcon)
             )
         } else {
             currentMarker?.position = state.latLng
             currentMarker?.snippet = "Speed: ${state.speed}km/h"
+            currentMarker?.icon = cachedIcon
         }
 
         if (showingMap) {
@@ -467,7 +488,6 @@ private fun setupSpeedLayer(context: Context, style: Style) {
     style.addLayer(textLayer)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(
     trainId: String,
@@ -546,7 +566,9 @@ private fun TopBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .rotate(animatedBearing.toFloat())
+                        .graphicsLayer {
+                            rotationZ = animatedBearing.toFloat()
+                        }
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.compass),
