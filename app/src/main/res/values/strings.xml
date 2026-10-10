@@ -51,6 +51,7 @@
     <string name="train_info_product">Product: %s</string>
     <string name="train_info_operator">Operator: %s</string>
     <string name="train_info_alert_is_deviation">This is a deviation</string>
+    <string name="train_info_no_stops">Failed to load train stops</string>
 
     <!--  Misc  -->
     <string name="close">Close</string>

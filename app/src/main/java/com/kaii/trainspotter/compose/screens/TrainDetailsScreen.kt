@@ -6,7 +6,6 @@ import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -16,18 +15,23 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +67,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -301,9 +307,7 @@ fun TrainDetailsScreen(
 
         PullToRefreshBox(
             isRefreshing = isRefreshing,
-            onRefresh = {
-                viewModel.onRefresh()
-            },
+            onRefresh = viewModel::onRefresh,
             modifier = Modifier
                 .padding(innerPadding)
                 .onGloballyPositioned {
@@ -312,9 +316,44 @@ fun TrainDetailsScreen(
         ) {
             val density = LocalDensity.current
             val items by viewModel.items.collectAsStateWithLifecycle()
-            val animatedMapHeight by animateDpAsState(
-                targetValue = with(density) { mapHeight.toDp() }
+            val animatedMapHeight by animateIntAsState(
+                targetValue = mapHeight
             )
+
+            if (items.items.isEmpty()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(
+                        space = 8.dp,
+                        alignment = Alignment.CenterVertically
+                    ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                x = 0,
+                                y = animatedMapHeight
+                            )
+                        }
+                        .fillMaxWidth()
+                        .height(with(LocalDensity.current) {
+                            (maxHeight - animatedMapHeight).toDp()
+                        })
+                        .verticalScroll(state = rememberScrollState())
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.wrong_location_filled),
+                        contentDescription = stringResource(id = R.string.train_info_no_stops),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .size(80.dp)
+                    )
+
+                    Text(
+                        text = stringResource(id = R.string.train_info_no_stops),
+                        style = MaterialTheme.typography.titleMediumEmphasized
+                    )
+                }
+            }
 
             JetLimeColumn(
                 listState = listState,
@@ -325,7 +364,12 @@ fun TrainDetailsScreen(
                 key = { _, item -> item.signature.ifEmpty { item.name } },
                 contentPadding = PaddingValues(16.dp),
                 modifier = Modifier
-                    .padding(top = animatedMapHeight)
+                    .offset {
+                        IntOffset(
+                            x = 0,
+                            y = animatedMapHeight
+                        )
+                    }
             ) { _, item, position ->
                 AnimatedContent(
                     targetState = isRefreshing,
@@ -361,7 +405,7 @@ fun TrainDetailsScreen(
                             topLeft = with(density) {
                                 Offset(
                                     x = 16.dp.toPx(),
-                                    y = animatedMapHeight.toPx()
+                                    y = animatedMapHeight.toFloat()
                                 )
                             },
                             size = with(density) {
@@ -386,7 +430,7 @@ fun TrainDetailsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize()
-                    .height(animatedMapHeight)
+                    .height(with(LocalDensity.current) { animatedMapHeight.toDp() })
                     .padding(16.dp)
                     .onGloballyPositioned {
                         mapWidth = it.size.width
