@@ -22,8 +22,8 @@ android {
         applicationId = "com.kaii.trainspotter"
         minSdk = 30
         targetSdk = 37
-        versionCode = 200
-        versionName = "2.0.0"
+        versionCode = 202
+        versionName = "2.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -61,7 +61,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -87,6 +86,8 @@ dependencies {
     implementation(libs.com.squareup.okhttp3.sse)
     implementation(libs.io.github.pushpalroy.jetlime)
     implementation(libs.org.maplibre.compose)
+    implementation(libs.org.maplibre.android)
+    implementation(libs.org.maplibre.geojson)
     implementation(libs.org.maplibre.turf)
 
     implementation(libs.com.github.kaii.lb.lavender.snackbars)
@@ -96,7 +97,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

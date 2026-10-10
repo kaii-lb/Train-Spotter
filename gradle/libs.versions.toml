@@ -22,7 +22,8 @@ hilt = "1.4.0"
 ui = "1.12.1"
 material3 = "1.5.0-beta01"
 maplibre = "0.20.0"
-turf = "6.0.1"
+maplibreAndroid = "13.6.1"
+mapLibreTurf = "6.0.1"
 lavenderSnackbars = "b79cb851bc"
 splashScreen = "1.2.0"
 geopkg = "6.7.5"
@@ -62,7 +63,9 @@ com-squareup-okhttp3 = { group = "com.squareup.okhttp3", name  = "okhttp", versi
 com-squareup-okhttp3-coroutines = { group = "com.squareup.okhttp3", name  = "okhttp-coroutines", version.ref = "okhttp3" }
 com-squareup-okhttp3-sse = { group = "com.squareup.okhttp3", name  = "okhttp-sse", version.ref = "okhttp3" }
 org-maplibre-compose = { group = "org.maplibre.compose", name = "maplibre-compose", version.ref = "maplibre" }
-org-maplibre-turf = { group = "org.maplibre.gl", name = "android-sdk-turf", version.ref = "turf" }
+org-maplibre-android = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibreAndroid" }
+org-maplibre-geojson = { group = "org.maplibre.gl", name = "android-sdk-geojson", version.ref = "mapLibreTurf" }
+org-maplibre-turf = { group = "org.maplibre.gl", name = "android-sdk-turf", version.ref = "mapLibreTurf" }
 
 io-github-pushpalroy-jetlime = { group = "io.github.pushpalroy", name = "jetlime", version.ref = "jetlime" }
 com-github-kaii-lb-lavender-snackbars = { group = "com.github.kaii-lb", name = "Lavender-Snackbars", version.ref = "lavenderSnackbars" }
