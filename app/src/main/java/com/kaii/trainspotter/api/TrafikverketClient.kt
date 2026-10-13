@@ -396,7 +396,10 @@ class TrafikverketClient(
     ) = """
         <REQUEST>
             <LOGIN authenticationkey="${apiKey.xmlEscaped()}"/>
-            <QUERY objecttype="TrainStation" limit="1" />
+        
+            <QUERY objecttype="TrainStation" namespace="rail.infrastructure" schemaversion="1.5" limit="1">
+              <FILTER></FILTER>
+            </QUERY>
         </REQUEST>
     """.trimIndent()
 }
