@@ -38,6 +38,8 @@ class LoginViewModel @Inject constructor(
         trafikverketKey: String
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            _events.send(LoginEvent.Loading)
+
             val newKey = ApiKey.Available(realtimeKey, trafikverketKey)
             realtimeClient.setApiKey(newKey)
             trafikverketClient.setApiKey(newKey)

@@ -4,5 +4,6 @@ enum class LoginEvent {
     RealtimeKeyInvalid,
     TrafikverketKeyInvalid,
     LoginSuccessful,
+    Loading,
     RequestNotificationPermission
 }

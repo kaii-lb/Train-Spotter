@@ -41,18 +41,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.kaii.lavender.snackbars.LavenderSnackbarController
 import com.kaii.lavender.snackbars.LavenderSnackbarEvents
+import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
+import com.kaii.trainspotter.compose.infiniteLoadingIndicator
 import com.kaii.trainspotter.compose.widgets.ApiKeyExplanationDialog
 import com.kaii.trainspotter.compose.widgets.NotificationPermissionDialog
 import com.kaii.trainspotter.domain.LoginEvent
 import com.kaii.trainspotter.helpers.RoundedCornerConstants
+import com.kaii.trainspotter.helpers.Screens
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.models.LoginViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
+import kotlin.time.Duration.Companion.seconds
 
 @Preview
 @Composable
@@ -71,6 +78,7 @@ fun LoginScreen(
     LoginScreen(
         events = viewModel.events,
         modifier = modifier,
+        navController = rememberNavController(),
         onLogin = viewModel::logIn
     )
 }
@@ -79,9 +87,12 @@ fun LoginScreen(
 fun LoginScreen(
     events: Flow<LoginEvent>,
     modifier: Modifier = Modifier,
+    navController: NavController = LocalNavController.current,
     onLogin: (rtKey: String, tvKey: String) -> Unit
 ) {
+    var isLoading by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
+
     if (showDialog) {
         NotificationPermissionDialog {
             showDialog = false
@@ -107,6 +118,8 @@ fun LoginScreen(
                 contentDescription = "key",
                 modifier = Modifier
                     .size(112.dp)
+                    .clip(CircleShape)
+                    .infiniteLoadingIndicator { isLoading }
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .padding(20.dp)
@@ -215,7 +228,10 @@ fun LoginScreen(
                     when (event) {
                         LoginEvent.RequestNotificationPermission -> showDialog = true
 
-                        LoginEvent.RealtimeKeyInvalid ->
+                        LoginEvent.Loading -> isLoading = true
+
+                        LoginEvent.RealtimeKeyInvalid -> {
+                            isLoading = false
                             LavenderSnackbarController.pushEvent(
                                 LavenderSnackbarEvents.MessageEvent(
                                     message = resources.getString(R.string.login_realtime_key_wrong),
@@ -223,8 +239,10 @@ fun LoginScreen(
                                     duration = SnackbarDuration.Short
                                 )
                             )
+                        }
 
-                        LoginEvent.TrafikverketKeyInvalid ->
+                        LoginEvent.TrafikverketKeyInvalid -> {
+                            isLoading = false
                             LavenderSnackbarController.pushEvent(
                                 LavenderSnackbarEvents.MessageEvent(
                                     message = resources.getString(R.string.login_trafikverket_key_wrong),
@@ -232,8 +250,10 @@ fun LoginScreen(
                                     duration = SnackbarDuration.Short
                                 )
                             )
+                        }
 
-                        LoginEvent.LoginSuccessful ->
+                        LoginEvent.LoginSuccessful -> {
+                            isLoading = false
                             LavenderSnackbarController.pushEvent(
                                 LavenderSnackbarEvents.MessageEvent(
                                     message = resources.getString(R.string.login_successful),
@@ -241,6 +261,11 @@ fun LoginScreen(
                                     duration = SnackbarDuration.Short
                                 )
                             )
+
+                            delay(1.seconds)
+
+                            navController.navigate(Screens.Search)
+                        }
                     }
                 }
             }
