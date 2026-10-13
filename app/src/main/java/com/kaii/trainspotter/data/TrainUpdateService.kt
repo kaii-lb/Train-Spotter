@@ -11,6 +11,8 @@ import android.content.pm.ServiceInfo
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -83,9 +85,11 @@ class TrainUpdateService : Service() {
             CHANNEL_ID,
             getString(R.string.service_channel_name),
             NotificationManager.IMPORTANCE_HIGH
-        )
+        ).apply {
+            description = getString(R.string.service_channel_description)
+            lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+        }
 
-        channel.description = getString(R.string.service_channel_description)
         notificationManager.createNotificationChannel(channel)
     }
 
@@ -194,6 +198,8 @@ class TrainUpdateService : Service() {
             .setSmallIcon(R.drawable.train_filled_48px)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setActions(
                 Notification.Action.Builder(
                     Icon.createWithResource(applicationContext, R.drawable.close),
@@ -202,8 +208,13 @@ class TrainUpdateService : Service() {
                 ).build()
             )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-            if (content.text.isNotBlank()) builder.setShortCriticalText(content.text)
+        if (Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1 &&
+            notificationManager.canPostPromotedNotifications()
+        ) {
+            if (content.text.isNotBlank()) {
+                builder.setShortCriticalText(content.text)
+                builder.setRequestPromotedOngoing(true)
+            }
 
             builder.setStyle(
                 Notification.ProgressStyle().apply {
@@ -221,6 +232,12 @@ class TrainUpdateService : Service() {
             builder.setProgress(content.max, content.progress, false)
         }
 
-        return builder.build()
+        return builder.build().also {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA &&
+                !it.hasPromotableCharacteristics()
+            ) {
+                Log.d("TrainUpdateService", "Notification is not promotable")
+            }
+        }
     }
 }

@@ -68,8 +68,9 @@
     <string name="settings_about">About</string>
     <string name="settings_version">Version Info</string>
     <string name="settings_developer">Developer</string>
-
-    <!--  Service Testing  -->
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_promoted_notifications">Live Notifications</string>
+    <string name="settings_promoted_notifications_desc">Shows a status bar chip with the train\'s speed, and a full notification when Always On Display is active</string>
 
     <!--  Permissions  -->
     <string name="permissions_grant">Grant</string>

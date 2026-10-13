@@ -1,6 +1,9 @@
 package com.kaii.trainspotter.compose.screens
 
 import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import android.util.Log
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -15,6 +18,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -22,9 +26,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.rememberNavController
 import com.kaii.trainspotter.LocalNavController
 import com.kaii.trainspotter.R
 import com.kaii.trainspotter.compose.widgets.ApiKeyPreferenceRow
@@ -34,6 +40,19 @@ import com.kaii.trainspotter.datastore.ApiKey
 import com.kaii.trainspotter.helpers.TextStylingConstants
 import com.kaii.trainspotter.models.SettingsViewModel
 import com.kaii.trainspotter.presentation.RowPosition
+
+@Preview
+@Composable
+private fun SettingsPreview() {
+    CompositionLocalProvider(
+        LocalNavController provides rememberNavController()
+    ) {
+        Settings(
+            apiKey = { ApiKey.NotAvailable },
+            onSetApiKey = {}
+        )
+    }
+}
 
 @Composable
 fun Settings(
@@ -130,6 +149,36 @@ fun Settings(
                         }
                     }
                 )
+            }
+
+            if (Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1) {
+                item {
+                    PreferencesSeparatorText(
+                        text = stringResource(id = R.string.settings_notifications)
+                    )
+                }
+
+                item {
+                    val context = LocalContext.current
+
+                    TextPreferencesRow(
+                        title = stringResource(id = R.string.settings_promoted_notifications),
+                        text = stringResource(id = R.string.settings_promoted_notifications_desc),
+                        icon = R.drawable.notifications_unread,
+                        position = RowPosition.Single,
+                        onClick = {
+                            try {
+                                val intent = Intent("android.settings.APP_NOTIFICATION_PROMOTION_SETTINGS").apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
+
+                                context.startActivity(intent)
+                            } catch (e: Throwable) {
+                                Log.d("com.kaii.trainspotter.compose.screens.Settings", "Failed to open promoted notification settings. ${e.message}")
+                            }
+                        }
+                    )
+                }
             }
 
             item {
