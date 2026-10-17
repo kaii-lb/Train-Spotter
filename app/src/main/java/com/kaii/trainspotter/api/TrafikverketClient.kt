@@ -88,44 +88,50 @@ class TrafikverketClient(
                 .response.result.firstOrNull()
                 ?.trainAnnouncements.orEmpty()
 
-            val built = announcements
-                .groupBy { it.locationSignature }
-                .mapNotNull { (signature, entries) ->
-                    if (signature == null) return@mapNotNull null
+            val stopsInGroupOrder = ArrayList<LocationDetails>()
+            val deviationsBySignature = HashMap<String, List<Information>>()
 
-                    val arrival = entries.find { it.activityType == "Ankomst" }
-                    val departure = entries.find { it.activityType == "Avgang" }
-                    val primary = arrival ?: departure ?: return@mapNotNull null
+            for ((signature, entries) in announcements.groupBy { it.locationSignature }) {
+                if (signature == null) continue
 
-                    val stop = LocationDetails(
-                        name = LocationShortCodeMap.getName(code = signature),
-                        signature = signature,
-                        track = primary.trackAtLocation?.takeUnless { it == "x" } ?: "",
-                        arrivalTime = arrival?.advertisedTimeAtLocation ?: "",
-                        estimatedArrivalTime = arrival?.let { it.timeAtLocation ?: it.estimatedTimeAtLocation },
-                        departureTime = departure?.advertisedTimeAtLocation ?: "",
-                        estimatedDepartureTime = departure?.let { it.timeAtLocation ?: it.estimatedTimeAtLocation },
-                        timeAtLocation = primary.timeAtLocation,
-                        passed = primary.timeAtLocation != null,
-                        delay = delayOf(
-                            estimated = primary.estimatedTimeAtLocation,
-                            advertised = primary.advertisedTimeAtLocation
-                        ),
-                        productInfo = productInfoOf(
-                            productInformation = primary.productInformation,
-                            owner = primary.informationOwner,
-                            operator = primary.operator
-                        ),
-                        deviations = emptyList(), // filled in below
-                        canceled = arrival?.canceled == true || departure?.canceled == true
-                    )
-                    stop to primary.deviations
-                }
+                val arrival = entries.find { it.activityType == "Ankomst" }
+                val departure = entries.find { it.activityType == "Avgang" }
+                val primary = arrival ?: departure ?: continue
+                val reachedAt = arrival?.timeAtLocation ?: departure?.timeAtLocation
 
-            val stops = built.map { it.first }.sortedByRunningOrder()
-            val deviationsBySignature = built.associate { (stop, devs) -> stop.signature to devs }
+                stopsInGroupOrder += LocationDetails(
+                    name = LocationShortCodeMap.getName(code = signature),
+                    signature = signature,
+                    track = primary.trackAtLocation?.takeUnless { it == "x" } ?: "",
+                    arrivalTime = arrival?.advertisedTimeAtLocation ?: "",
+                    estimatedArrivalTime = arrival?.let { it.timeAtLocation ?: it.estimatedTimeAtLocation },
+                    departureTime = departure?.advertisedTimeAtLocation ?: "",
+                    estimatedDepartureTime = departure?.let { it.timeAtLocation ?: it.estimatedTimeAtLocation },
+                    timeAtLocation = reachedAt,
+                    passed = reachedAt != null || primary.canceled == true,
+                    delay = delayOf(
+                        estimated = primary.estimatedTimeAtLocation,
+                        advertised = primary.advertisedTimeAtLocation
+                    ),
+                    productInfo = productInfoOf(
+                        productInformation = primary.productInformation,
+                        owner = primary.informationOwner,
+                        operator = primary.operator
+                    ),
+                    deviations = emptyList(), // filled in below
+                    canceled = arrival?.canceled == true || departure?.canceled == true
+                )
 
-            val codes = built.flatMap { (_, devs) -> devs.map { it.code } }.distinct()
+                deviationsBySignature[signature] = primary.deviations
+            }
+
+            val stops = stopsInGroupOrder
+                .sortedByRunningOrder()
+                .markSkippedStops()
+
+            val codes = deviationsBySignature.values
+                .flatMap { devs -> devs.map { it.code } }
+                .distinct()
 
             val (reasonCodes, alertsBySignature) = coroutineScope {
                 val reasons = async { fetchReasonCodes(codes = codes, apiKey = key) }
@@ -139,7 +145,7 @@ class TrafikverketClient(
                         val networked = reasonCodes?.get(dev.code)
                             ?.toAlert(additionTypeInfo = "Deviation", isDeviation = true)
 
-                        networked  ?: Alert(
+                        networked ?: Alert(
                             type = "Deviation",
                             title = dev.code,
                             text = dev.description,
@@ -317,6 +323,17 @@ class TrafikverketClient(
 
             stop to epoch
         }.sortedBy { it.second }.map { it.first }
+
+    private fun List<LocationDetails>.markSkippedStops(): List<LocationDetails> {
+        val lastReached = indexOfLast { it.timeAtLocation != null }
+        if (lastReached <= 0) return this
+
+        return mapIndexed { i, stop ->
+            if (i < lastReached && stop.timeAtLocation == null && !stop.canceled) {
+                stop.copy(canceled = true, passed = true)
+            } else stop
+        }
+    }
 
     private fun announcementQuery(trainId: String, apiKey: String) = $$"""
         <REQUEST>
