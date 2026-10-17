@@ -364,12 +364,7 @@ fun TrainDetailsScreen(
                 key = { _, item -> item.signature.ifEmpty { item.name } },
                 contentPadding = PaddingValues(16.dp),
                 modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            x = 0,
-                            y = animatedMapHeight
-                        )
-                    }
+                    .padding(top = with (density) { animatedMapHeight.toDp() })
             ) { _, item, position ->
                 AnimatedContent(
                     targetState = isRefreshing,
